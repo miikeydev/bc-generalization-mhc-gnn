@@ -113,11 +113,11 @@ Thumbs.db
 # =========================
 # Project-specific / Data
 # =========================
-data/
-datasets/
-outputs/
-runs/
-checkpoints/
+/data/
+/datasets/
+/outputs/
+/runs/
+/checkpoints/
 *.pt
 *.pth
 *.ckpt

@@ -1,6 +1,5 @@
-def main():
-    print("Hello from bc-generalization-mhc-gnn!")
+from src.train import cli_main
 
 
 if __name__ == "__main__":
-    main()
+    cli_main()
