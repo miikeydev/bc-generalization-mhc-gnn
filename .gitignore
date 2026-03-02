@@ -50,7 +50,7 @@ venv.bak/
 # =========================
 # Packaging / Tooling Locks
 # =========================
-# uv (IMPORTANT: on COMMIT uv.lock, donc ne pas l’ignorer)
+# uv (IMPORTANT: commit uv.lock, therefore do not ignore it)
 # uv.lock
 
 poetry.lock
@@ -122,7 +122,7 @@ checkpoints/
 *.pth
 *.ckpt
 
-# Docs lourds / externes
+# Heavy / External documents
 docs/papers/
 external/
 docs/_build/
