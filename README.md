@@ -25,6 +25,13 @@ uv run python -m src.train --config configs/hc_gcn.yaml
 uv run python -m src.train --config configs/mhc_lite_gcn.yaml
 ```
 
+## Depth Sweep
+```bash
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep.yaml
+uv run python -m src.experiments.collect_results --sweep-index outputs/depth_sweep/sweep_index.json --output-csv outputs/depth_sweep/depth_results.csv
+uv run python -m src.experiments.plot_depth_curves --csv outputs/depth_sweep/depth_results.csv --figures-dir outputs/depth_sweep/figures
+```
+
 Outputs are written to `outputs/<experiment_name>/`:
 - `best_model.pt`
 - `metrics.json`
