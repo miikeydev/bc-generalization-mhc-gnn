@@ -116,7 +116,7 @@ def main() -> None:
     figures_dir = Path(args.figures_dir)
 
     if not csv_path.exists():
-        print(f"{csv_path} not found. Run scripts/collect_results.py first.")
+        print(f"{csv_path} not found. Run: python -m src.experiments.collect_results first.")
         return
 
     rows = load_csv(csv_path)

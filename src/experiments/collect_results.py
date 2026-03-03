@@ -49,7 +49,7 @@ def main() -> None:
         rows = load_from_outputs(index_path.parent)
 
     if not rows:
-        print("No results found. Run scripts/run_depth_sweep.py first.")
+        print("No results found. Run: python -m src.experiments.run_depth_sweep first.")
         return
 
     all_keys: dict[str, None] = {}
