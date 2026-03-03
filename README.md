@@ -10,10 +10,19 @@ Benchmarking depth scaling and Top-K retrieval for betweenness centrality using 
 
 Pipeline: `data -> model -> train -> eval`.
 
+## Model Variants
+- `gcn`: baseline GCN regressor
+- `hc_gnn`: multi-stream hyper-connections without manifold constraint
+- `mhc_gnn`: manifold-constrained hyper-connections with Sinkhorn projection
+- `mhc_lite_gnn`: exact doubly-stochastic residual mixing via convex combination of permutation matrices
+
 ## Run
 ```bash
 uv run python -m src.train --config configs/smoke.yaml
 uv run python -m src.train --config configs/baseline_gcn.yaml
+uv run python -m src.train --config configs/mhc_gcn.yaml
+uv run python -m src.train --config configs/hc_gcn.yaml
+uv run python -m src.train --config configs/mhc_lite_gcn.yaml
 ```
 
 Outputs are written to `outputs/<experiment_name>/`:
