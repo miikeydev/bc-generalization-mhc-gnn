@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from torch import nn
 
+from .baselines_deep import APPNPNodeRegressor, GCNIINodeRegressor, JKNetNodeRegressor
+from .baselines_shallow import GATNodeRegressor, GINNodeRegressor, SAGENodeRegressor
 from .gcn_baseline import GCNNodeRegressor
 from .hyper_connection_gnn import HyperConnectionGNNRegressor
 
@@ -48,6 +50,60 @@ def build_model(config: dict, input_dim: int) -> nn.Module:
                 else None
             ),
             mhc_lite_permutation_seed=int(model_cfg.get("mhc_lite_permutation_seed", 0)),
+        )
+
+    if model_name == "sage":
+        return SAGENodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+        )
+
+    if model_name == "gat":
+        return GATNodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+            num_heads=int(model_cfg.get("num_heads", 4)),
+        )
+
+    if model_name == "gin":
+        return GINNodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+        )
+
+    if model_name == "gcnii":
+        return GCNIINodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+            alpha=float(model_cfg.get("alpha", 0.1)),
+            theta=float(model_cfg.get("theta", 0.5)),
+        )
+
+    if model_name == "appnp":
+        return APPNPNodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+            alpha=float(model_cfg.get("alpha", 0.1)),
+            K=int(model_cfg.get("K", 10)),
+        )
+
+    if model_name == "jknet":
+        return JKNetNodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+            mode=str(model_cfg.get("mode", "max")),
         )
 
     raise ValueError(f"Unsupported model name: {model_name}")
