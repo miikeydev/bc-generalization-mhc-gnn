@@ -44,3 +44,26 @@ Upgrade baseline coverage to match the core research question more rigorously:
   - `Spearman`, `Kendall`
   - `Precision@K`, `NDCG@K`
   - Mean and std across seeds
+
+## 3) Depth Scaling Campaign (Missing)
+Status: `todo`  
+Label: `paper-aligned`
+
+### Problem
+No real depth-scaling campaign has been run yet.
+
+### Why
+- The training code is valid for single runs, but not yet used for a systematic sweep.
+- We still need a depth sweep `L = {2, 4, 8, 16, 32, ...}` with multi-seed reporting.
+
+### References
+- Training entrypoint: [train.py](/home/mvayssieres/dev/bc-generalization-mhc-gnn/src/train.py)
+- Implementation plan: section `Ablation axes`
+
+### Proposed patch scope
+- Add a reproducible runner for depth sweeps across models and seeds.
+- Store per-run outputs and aggregate `mean ± std` tables.
+
+### Evaluation
+- Compare depth trends for `gcn`, `hc_gnn`, `mhc_gnn`, `mhc_lite_gnn`.
+- Report ID/OOD ranking + Top-K metrics at each depth.
