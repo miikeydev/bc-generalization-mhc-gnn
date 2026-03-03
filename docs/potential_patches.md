@@ -1,69 +1,113 @@
 # Potential Patches
 
-## 1) External-style Features Ablation
+## 1) Strong Baseline Alignment
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Add strong non-HC baselines for fair comparison.
+
+### Scope
+- Standard baselines: `GCN`, `GraphSAGE`, `GAT`, `GIN`
+- Deep baselines: `GCNII`, `APPNP` or `GPRGNN`, `JKNet`
+- Integrate in `src/models/` and `src/models/factory.py`
+- Add dedicated configs in `configs/`
+
+### Evaluation
+- Same protocol as HC variants
+- Report `Spearman`, `Kendall`, `Precision@K`, `NDCG@K`
+
+## 2) Depth Scaling Campaign
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Run a real depth sweep instead of isolated runs.
+
+### Scope
+- Sweep `L = {2, 4, 8, 16, 32, ...}`
+- Compare `gcn`, `hc_gnn`, `mhc_gnn`, `mhc_lite_gnn`
+- Use the existing training entrypoint: [train.py](/home/mvayssieres/dev/bc-generalization-mhc-gnn/src/train.py)
+- Align with Implementation Plan section `Ablation axes`
+
+### Evaluation
+- Depth curves on `val`, `test_id`, `test_ood`
+- Ranking + Top-K metrics at each depth
+
+## 3) Multi-Seed Statistical Protocol
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Avoid single-seed conclusions.
+
+### Scope
+- Run each setup with `3-5` seeds
+- Aggregate metrics to `mean ± std`
+- Save per-seed and aggregated outputs
+
+### Evaluation
+- Stability and variance across seeds
+- Robust comparison between model families
+
+## 4) Core Ablations for HC/mHC/mHC-lite
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Isolate which mechanism gives the gain.
+
+### Scope
+- `n_streams`
+- `sinkhorn_iters`
+- `sinkhorn_tau`
+- `use_dynamic` / `use_static`
+- `mhc_lite_max_permutations` when needed
+
+### Evaluation
+- Effect size on ID/OOD ranking and Top-K
+- Sensitivity by depth level
+
+## 5) Fair Budget and Capacity Matching
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Ensure gains are architectural, not budget artifacts.
+
+### Scope
+- Keep training budget comparable across models
+- Track parameter count per model
+- Match capacity where possible
+
+### Evaluation
+- Performance with fair compute/capacity settings
+
+## 6) Reporting Pack (Paper-Style)
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Produce publishable final artifacts.
+
+### Scope
+- Consolidated tables for all model families
+- Depth-scaling figures (ID/OOD)
+- Top-K comparison figures
+
+### Evaluation
+- One final report with all core claims traceable
+
+## 7) External-Style Features Ablation
 Status: `todo`  
 Label: `EXTRA (not from paper)`
 
 ### Goal
-Add an optional feature mode to reproduce the external reference style:
+Optional ablation with external-style features.
+
+### Scope
 - `OneHotDegree`
 - `RandomWalkPE`
 
-This is for ablation/comparison only, not part of the core paper-aligned scope.
-
-### Why
-- Compare current structural features (`degree + log_degree + LapPE`) vs external-style features.
-- Quantify impact on ranking and Top-K metrics in the same training/eval pipeline.
-
-## 2) Strong Baseline Alignment (Paper Scope)
-Status: `todo`  
-Label: `paper-aligned`
-
-### Goal
-Upgrade baseline coverage to match the core research question more rigorously:
-- Standard single-stream baselines: `GCN`, `GraphSAGE`, `GAT`, `GIN`
-- Deep baselines: `GCNII`, `APPNP` or `GPRGNN`, `JKNet`
-
-### Why
-- Current baseline is centered on `GCN`, which is useful but not sufficient for a strong claim.
-- The implementation plan explicitly calls for strong deep-GNN baselines when evaluating depth scaling.
-- Fair comparison requires matching each HC/mHC/mHC-lite variant against a strong non-HC counterpart.
-
-### Proposed patch scope
-- Add baseline model files under `src/models/` for missing standard/deep variants.
-- Extend `src/models/factory.py` to select each baseline from config.
-- Add dedicated configs under `configs/` for each baseline and depth sweep setup.
-- Keep training/eval pipeline unchanged (`src/train.py`, `src/eval.py`) for apples-to-apples comparison.
-
 ### Evaluation
-- Run identical protocol for all baselines and HC variants:
-  - Same graph families and ID/OOD split
-  - Same seed policy
-  - Same depth sweep (`L = 2, 4, 8, 16, 32`)
-- Report:
-  - `Spearman`, `Kendall`
-  - `Precision@K`, `NDCG@K`
-  - Mean and std across seeds
-
-## 3) Depth Scaling Campaign (Missing)
-Status: `todo`  
-Label: `paper-aligned`
-
-### Problem
-No real depth-scaling campaign has been run yet.
-
-### Why
-- The training code is valid for single runs, but not yet used for a systematic sweep.
-- We still need a depth sweep `L = {2, 4, 8, 16, 32, ...}` with multi-seed reporting.
-
-### References
-- Training entrypoint: [train.py](/home/mvayssieres/dev/bc-generalization-mhc-gnn/src/train.py)
-- Implementation plan: section `Ablation axes`
-
-### Proposed patch scope
-- Add a reproducible runner for depth sweeps across models and seeds.
-- Store per-run outputs and aggregate `mean ± std` tables.
-
-### Evaluation
-- Compare depth trends for `gcn`, `hc_gnn`, `mhc_gnn`, `mhc_lite_gnn`.
-- Report ID/OOD ranking + Top-K metrics at each depth.
+- Delta versus `degree + log_degree + LapPE`
