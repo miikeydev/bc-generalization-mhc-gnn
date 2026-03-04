@@ -12,6 +12,8 @@ Pipeline: `data -> model -> train -> eval`.
 
 ## Model Variants
 - `gcn`: baseline GCN regressor
+- `sage` / `gat` / `gin`: shallow message-passing baselines
+- `gcnii` / `appnp` / `jknet`: deep baseline families
 - `hc_gnn`: multi-stream hyper-connections without manifold constraint
 - `mhc_gnn`: manifold-constrained hyper-connections with Sinkhorn projection
 - `mhc_lite_gnn`: exact doubly-stochastic residual mixing via convex combination of permutation matrices
@@ -23,11 +25,17 @@ uv run python -m src.train --config configs/baseline_gcn.yaml
 uv run python -m src.train --config configs/mhc_gcn.yaml
 uv run python -m src.train --config configs/hc_gcn.yaml
 uv run python -m src.train --config configs/mhc_lite_gcn.yaml
+uv run python -m src.train --config configs/hc_gcnii.yaml
+uv run python -m src.train --config configs/mhc_appnp.yaml
+uv run python -m src.train --config configs/mhc_lite_jknet.yaml
 ```
 
 ## Depth Sweep
 ```bash
 uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep_gcnii_hc.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep_appnp_hc.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep_jknet_hc.yaml
 uv run python -m src.experiments.collect_results --sweep-index outputs/depth_sweep/sweep_index.json --output-csv outputs/depth_sweep/depth_results.csv
 uv run python -m src.experiments.plot_depth_curves --csv outputs/depth_sweep/depth_results.csv --figures-dir outputs/depth_sweep/figures
 ```

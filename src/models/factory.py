@@ -50,6 +50,11 @@ def build_model(config: dict, input_dim: int) -> nn.Module:
                 else None
             ),
             mhc_lite_permutation_seed=int(model_cfg.get("mhc_lite_permutation_seed", 0)),
+            gcnii_alpha=float(model_cfg.get("gcnii_alpha", model_cfg.get("alpha", 0.1))),
+            gcnii_theta=float(model_cfg.get("gcnii_theta", model_cfg.get("theta", 0.5))),
+            appnp_alpha=float(model_cfg.get("appnp_alpha", model_cfg.get("alpha", 0.1))),
+            appnp_k=int(model_cfg.get("appnp_k", model_cfg.get("K", 10))),
+            jk_mode=str(model_cfg.get("jk_mode", model_cfg.get("mode", "max"))),
         )
 
     if model_name == "sage":

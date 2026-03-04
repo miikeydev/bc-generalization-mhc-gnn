@@ -1,0 +1,9 @@
+depths: [2, 4, 8, 16, 32]
+
+base_configs:
+  - configs/baseline_gcnii.yaml
+  - configs/hc_gcnii.yaml
+  - configs/mhc_gcnii.yaml
+  - configs/mhc_lite_gcnii.yaml
+
+output_root: outputs/depth_sweep_gcnii_hc
