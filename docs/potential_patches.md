@@ -1,34 +1,42 @@
 # Potential Patches
 
 ## 1) Strong Baseline Alignment
-Status: `todo`  
+Status: `done`  
 Label: `paper-aligned`
 
 ### Goal
 Add strong non-HC baselines for fair comparison.
 
-### Scope
-- Standard baselines: `GCN`, `GraphSAGE`, `GAT`, `GIN`
-- Deep baselines: `GCNII`, `APPNP` or `GPRGNN`, `JKNet`
-- Integrate in `src/models/` and `src/models/factory.py`
-- Add dedicated configs in `configs/`
+### Implemented
+- Standard baselines integrated: `GCN`, `GraphSAGE`, `GAT`, `GIN`
+- Deep baselines integrated: `GCNII`, `APPNP`, `JKNet`
+- Model integration completed in `src/models/` + `src/models/factory.py`
+- Dedicated configs added in `configs/`
+- HC family also extended to deep backbones (`gnn_type = gcnii/appnp/jknet`)
 
 ### Evaluation
 - Same protocol as HC variants
-- Report `Spearman`, `Kendall`, `Precision@K`, `NDCG@K`
+- `Spearman`, `Kendall`, `Precision@K`, `NDCG@K`
 
 ## 2) Depth Scaling Campaign
-Status: `todo`  
+Status: `done`  
 Label: `paper-aligned`
 
 ### Goal
 Run a real depth sweep instead of isolated runs.
 
-### Scope
-- Sweep `L = {2, 4, 8, 16, 32, ...}`
-- Compare `gcn`, `hc_gnn`, `mhc_gnn`, `mhc_lite_gnn`
-- Use the existing training entrypoint: [train.py](/home/mvayssieres/dev/bc-generalization-mhc-gnn/src/train.py)
-- Align with Implementation Plan section `Ablation axes`
+### Implemented
+- Sweep pipeline implemented:
+  - `src/experiments/run_depth_sweep.py`
+  - `src/experiments/collect_results.py`
+  - `src/experiments/plot_depth_curves.py`
+- Depth sweeps run on:
+  - mixed setup: `configs/depth_sweep.yaml`
+  - deep+HC setups:
+    - `configs/depth_sweep_gcnii_hc.yaml`
+    - `configs/depth_sweep_appnp_hc.yaml`
+    - `configs/depth_sweep_jknet_hc.yaml`
+- Outputs saved under `outputs/depth_sweep*`
 
 ### Evaluation
 - Depth curves on `val`, `test_id`, `test_ood`
@@ -41,14 +49,14 @@ Label: `paper-aligned`
 ### Goal
 Avoid single-seed conclusions.
 
-### Scope
+### Remaining
 - Run each setup with `3-5` seeds
 - Aggregate metrics to `mean ± std`
 - Save per-seed and aggregated outputs
+- Report confidence/stability in final comparisons
 
-### Evaluation
-- Stability and variance across seeds
-- Robust comparison between model families
+### Current Gap
+- Existing sweeps are single-seed
 
 ## 4) Core Ablations for HC/mHC/mHC-lite
 Status: `todo`  
@@ -57,7 +65,7 @@ Label: `paper-aligned`
 ### Goal
 Isolate which mechanism gives the gain.
 
-### Scope
+### Remaining
 - `n_streams`
 - `sinkhorn_iters`
 - `sinkhorn_tau`
@@ -75,39 +83,29 @@ Label: `paper-aligned`
 ### Goal
 Ensure gains are architectural, not budget artifacts.
 
-### Scope
+### Remaining
 - Keep training budget comparable across models
 - Track parameter count per model
 - Match capacity where possible
+- Add compute-aware comparison table
 
 ### Evaluation
 - Performance with fair compute/capacity settings
 
-## 6) Reporting Pack (Paper-Style)
-Status: `todo`  
-Label: `paper-aligned`
-
-### Goal
-Produce publishable final artifacts.
-
-### Scope
-- Consolidated tables for all model families
-- Depth-scaling figures (ID/OOD)
-- Top-K comparison figures
-
-### Evaluation
-- One final report with all core claims traceable
-
-## 7) External-Style Features Ablation
+## 6) Hyperparameter Search Protocol
 Status: `todo`  
 Label: `EXTRA (not from paper)`
 
 ### Goal
-Optional ablation with external-style features.
+Reduce hyperparameter bias without full brute-force sweeps.
 
 ### Scope
-- `OneHotDegree`
-- `RandomWalkPE`
+- Add a lightweight search protocol (Optuna or random search) on validation only
+- Use a two-stage budget:
+  - proxy stage (reduced epochs/data)
+  - confirmation stage (full setup on top candidates)
+- Freeze selected hyperparameters before final multi-seed depth sweeps
 
 ### Evaluation
-- Delta versus `degree + log_degree + LapPE`
+- Delta versus current defaults on `val/test_id/test_ood`
+- Report search budget and selected settings

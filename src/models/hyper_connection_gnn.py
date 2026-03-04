@@ -5,7 +5,8 @@ import math
 
 import torch
 from torch import nn
-from torch_geometric.nn import GATConv, GCNConv, GINConv, SAGEConv
+from torch_geometric.nn import APPNP as APPNPConv
+from torch_geometric.nn import GATConv, GCN2Conv, GCNConv, GINConv, JumpingKnowledge, SAGEConv
 
 
 def sinkhorn_knopp(
@@ -205,11 +206,17 @@ class HyperConnectionGNNRegressor(nn.Module):
         sinkhorn_iters: int,
         mhc_lite_max_permutations: int | None,
         mhc_lite_permutation_seed: int,
+        gcnii_alpha: float,
+        gcnii_theta: float,
+        appnp_alpha: float,
+        appnp_k: int,
+        jk_mode: str,
     ) -> None:
         super().__init__()
         if num_layers < 1:
             raise ValueError("num_layers must be >= 1")
 
+        self.gnn_type = gnn_type.lower()
         self.hidden_dim = hidden_dim
         self.n_streams = n_streams
         self.dropout = nn.Dropout(dropout)
@@ -219,8 +226,19 @@ class HyperConnectionGNNRegressor(nn.Module):
         self.gnn_layers = nn.ModuleList()
         self.hyper_layers = nn.ModuleList()
 
-        for _ in range(num_layers):
-            self.gnn_layers.append(build_conv_layer(gnn_type, hidden_dim, hidden_dim))
+        for layer_idx in range(num_layers):
+            self.gnn_layers.append(
+                build_conv_layer(
+                    gnn_type=self.gnn_type,
+                    in_dim=hidden_dim,
+                    out_dim=hidden_dim,
+                    layer_index=layer_idx,
+                    gcnii_alpha=gcnii_alpha,
+                    gcnii_theta=gcnii_theta,
+                    appnp_alpha=appnp_alpha,
+                    appnp_k=appnp_k,
+                )
+            )
             self.hyper_layers.append(
                 HyperConnectionMappings(
                     hidden_dim=hidden_dim,
@@ -236,28 +254,87 @@ class HyperConnectionGNNRegressor(nn.Module):
                 )
             )
 
-        self.readout = nn.Linear(hidden_dim, 1)
+        self.jk = None
+        readout_dim = hidden_dim
+        if self.gnn_type == "jknet":
+            if jk_mode == "lstm":
+                self.jk = JumpingKnowledge(mode="lstm", channels=hidden_dim, num_layers=num_layers)
+            else:
+                self.jk = JumpingKnowledge(mode=jk_mode)
+            readout_dim = hidden_dim * num_layers if jk_mode == "cat" else hidden_dim
+
+        self.readout = nn.Linear(readout_dim, 1)
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
         num_nodes = x.shape[0]
         streams = self.input_expand(x).view(num_nodes, self.n_streams, self.hidden_dim)
+        gcnii_x0 = streams.mean(dim=1)
+        representations: list[torch.Tensor] = []
 
         for gnn, hyper in zip(self.gnn_layers, self.hyper_layers):
             h_pre, h_post, h_res = hyper(streams)
             aggregated = torch.bmm(h_pre, streams).squeeze(1)
-            message = gnn(aggregated, edge_index)
+            if isinstance(gnn, GCNIIMessageLayer):
+                message = gnn(aggregated, edge_index, gcnii_x0)
+            else:
+                message = gnn(aggregated, edge_index)
             message = torch.relu(message)
             message = self.dropout(message)
+            if self.jk is not None:
+                representations.append(message)
 
             residual = torch.bmm(h_res, streams)
             expanded = h_post.transpose(1, 2) * message.unsqueeze(1)
             streams = residual + expanded
 
-        out = streams.mean(dim=1)
+        if self.jk is not None:
+            out = self.jk(representations)
+        else:
+            out = streams.mean(dim=1)
         return self.readout(out).squeeze(-1)
 
 
-def build_conv_layer(gnn_type: str, in_dim: int, out_dim: int):
+class GCNIIMessageLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_dim: int,
+        layer_index: int,
+        alpha: float,
+        theta: float,
+    ) -> None:
+        super().__init__()
+        self.conv = GCN2Conv(hidden_dim, alpha=alpha, theta=theta, layer=layer_index + 1, shared_weights=True)
+
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor, x0: torch.Tensor) -> torch.Tensor:
+        return self.conv(x, x0, edge_index)
+
+
+class APPNPMessageLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_dim: int,
+        alpha: float,
+        k: int,
+    ) -> None:
+        super().__init__()
+        self.proj = nn.Linear(hidden_dim, hidden_dim)
+        self.prop = APPNPConv(K=k, alpha=alpha)
+
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        hidden = self.proj(x)
+        return self.prop(hidden, edge_index)
+
+
+def build_conv_layer(
+    gnn_type: str,
+    in_dim: int,
+    out_dim: int,
+    layer_index: int,
+    gcnii_alpha: float,
+    gcnii_theta: float,
+    appnp_alpha: float,
+    appnp_k: int,
+):
     key = gnn_type.lower()
     if key == "gcn":
         return GCNConv(in_dim, out_dim)
@@ -272,6 +349,21 @@ def build_conv_layer(gnn_type: str, in_dim: int, out_dim: int):
             nn.Linear(out_dim, out_dim),
         )
         return GINConv(mlp)
+    if key == "gcnii":
+        return GCNIIMessageLayer(
+            hidden_dim=in_dim,
+            layer_index=layer_index,
+            alpha=gcnii_alpha,
+            theta=gcnii_theta,
+        )
+    if key == "appnp":
+        return APPNPMessageLayer(
+            hidden_dim=in_dim,
+            alpha=appnp_alpha,
+            k=appnp_k,
+        )
+    if key == "jknet":
+        return GCNConv(in_dim, out_dim)
     raise ValueError(f"Unsupported gnn_type: {gnn_type}")
 
 

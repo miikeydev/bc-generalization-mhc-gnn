@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 
 MODEL_STYLE: dict[str, dict] = {
     "gcn":          {"color": "#4878cf", "linestyle": "-",  "marker": "o"},
+    "gcnii":        {"color": "#ff7f0e", "linestyle": "-",  "marker": "D"},
+    "appnp":        {"color": "#8c564b", "linestyle": "-",  "marker": "P"},
+    "jknet":        {"color": "#17becf", "linestyle": "-",  "marker": "X"},
     "hc_gnn":       {"color": "#1f77b4", "linestyle": ":",  "marker": "o"},
     "mhc_gnn":      {"color": "#d62728", "linestyle": ":",  "marker": "s"},
     "mhc_lite_gnn": {"color": "#2ca02c", "linestyle": ":",  "marker": "^"},
@@ -103,8 +106,9 @@ def plot_summary(rows: list[dict], out_dir: Path) -> None:
             ax.grid(True, alpha=0.3)
 
     handles, labels = axes[0][0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=len(MODEL_STYLE), fontsize=9, bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle("Depth Scaling — gcn vs hc_gnn vs mhc_gnn vs mhc_lite_gnn", fontsize=11)
+    legend_cols = max(1, min(4, len(labels)))
+    fig.legend(handles, labels, loc="lower center", ncol=legend_cols, fontsize=9, bbox_to_anchor=(0.5, -0.01))
+    fig.suptitle("Depth Scaling Summary", fontsize=11)
     fig.tight_layout(rect=[0, 0.05, 1, 1])
     fig.savefig(out_dir / "depth_scaling_summary.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
