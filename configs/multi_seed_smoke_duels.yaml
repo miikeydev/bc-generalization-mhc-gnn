@@ -1,0 +1,7 @@
+seeds: [0, 1]
+
+output_root: outputs/multi_seed_smoke
+
+base_configs:
+  - configs/multi_seed_smoke_gcn.yaml
+  - configs/multi_seed_smoke_mhc_gcn.yaml

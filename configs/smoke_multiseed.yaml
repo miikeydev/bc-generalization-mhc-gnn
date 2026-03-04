@@ -1,0 +1,39 @@
+experiment:
+  name: smoke_multiseed
+  output_dir: outputs/multiseed/smoke
+
+device: auto
+
+data:
+  train_graphs: 6
+  val_graphs: 2
+  test_graphs_id: 2
+  test_graphs_ood: 2
+  train_num_nodes: 40
+  test_num_nodes: 80
+  average_degree: 6
+  train_families: [er, ba, sbm]
+  ood_families: [ws, rgg]
+  feature_mode: structural_only
+  lap_pe_dim: 4
+  random_feature_dim: 8
+  bc_approximation_k: null
+  train_sign_flip_lappe: true
+
+model:
+  name: gcn
+  hidden_dim: 32
+  num_layers: 2
+  dropout: 0.1
+
+training:
+  epochs: 3
+  batch_size: 2
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  ranking_pairs_per_node: 10
+  patience: 3
+
+evaluation:
+  topk_values: [5, 10]
+  topk_ratios: [0.05]

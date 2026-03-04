@@ -1,0 +1,48 @@
+experiment:
+  name: multiseed_mhc_gcnii
+  output_dir: outputs/multiseed/mhc_gcnii
+
+device: auto
+
+data:
+  train_graphs: 80
+  val_graphs: 20
+  test_graphs_id: 20
+  test_graphs_ood: 20
+  train_num_nodes: 100
+  test_num_nodes: 500
+  average_degree: 8
+  train_families: [er, ba, sbm]
+  ood_families: [ws, rgg]
+  feature_mode: structural_only
+  lap_pe_dim: 8
+  random_feature_dim: 16
+  bc_approximation_k: null
+  train_sign_flip_lappe: true
+
+model:
+  name: mhc_gnn
+  gnn_type: gcnii
+  hidden_dim: 128
+  num_layers: 4
+  dropout: 0.1
+  n_streams: 4
+  use_dynamic: true
+  use_static: true
+  mapping_init_alpha: 0.01
+  sinkhorn_tau: 0.1
+  sinkhorn_iters: 20
+  alpha: 0.1
+  theta: 0.5
+
+training:
+  epochs: 50
+  batch_size: 4
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  ranking_pairs_per_node: 30
+  patience: 10
+
+evaluation:
+  topk_values: [10, 20, 50]
+  topk_ratios: [0.01, 0.05]
