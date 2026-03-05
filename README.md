@@ -7,6 +7,11 @@ Benchmarking depth scaling and Top-K retrieval for betweenness centrality using 
 - `src/losses`: pairwise ranking loss for BC ordering.
 - `src/eval.py`: Spearman, Kendall, Precision@K, NDCG@K.
 - `src/train.py`: end-to-end training loop, early stopping, checkpoint + metrics export.
+- `configs/sweeps`: depth sweep definitions.
+- `configs/multi_seed/duels`: targeted multi-seed comparisons.
+- `configs/multi_seed/full`: full multi-seed benchmark configs.
+- `configs/isolated/smoke`: fast isolated smoke tests.
+- `configs/README.md`: config map and run commands.
 
 Pipeline: `data -> model -> train -> eval`.
 
@@ -20,24 +25,31 @@ Pipeline: `data -> model -> train -> eval`.
 
 ## Run
 ```bash
-uv run python -m src.train --config configs/smoke.yaml
-uv run python -m src.train --config configs/baseline_gcn.yaml
-uv run python -m src.train --config configs/mhc_gcn.yaml
-uv run python -m src.train --config configs/hc_gcn.yaml
-uv run python -m src.train --config configs/mhc_lite_gcn.yaml
-uv run python -m src.train --config configs/hc_gcnii.yaml
-uv run python -m src.train --config configs/mhc_appnp.yaml
-uv run python -m src.train --config configs/mhc_lite_jknet.yaml
+uv run python -m src.train --config configs/isolated/single/train_default.yaml
 ```
 
 ## Depth Sweep
 ```bash
-uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep.yaml
-uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep_gcnii_hc.yaml
-uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep_appnp_hc.yaml
-uv run python -m src.experiments.run_depth_sweep --sweep-config configs/depth_sweep_jknet_hc.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_gcnii_hc.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_appnp_hc.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_jknet_hc.yaml
 uv run python -m src.experiments.collect_results --sweep-index outputs/depth_sweep/sweep_index.json --output-csv outputs/depth_sweep/depth_results.csv
 uv run python -m src.experiments.plot_depth_curves --csv outputs/depth_sweep/depth_results.csv --figures-dir outputs/depth_sweep/figures
+```
+
+## Multi-Seed
+```bash
+uv run python -m src.experiments.run_multi_seed --sweep-config configs/multi_seed/duels/multi_seed_duels.yaml
+uv run python -m src.experiments.aggregate_seeds --output-root outputs/multi_seed
+
+uv run python -m src.experiments.run_multi_seed --sweep-config configs/multi_seed/full/multi_seed_full.yaml
+uv run python -m src.experiments.aggregate_seeds --output-root outputs/multi_seed_full
+```
+
+## Smoke (Isolated)
+```bash
+uv run python -m src.experiments.run_multi_seed --sweep-config configs/isolated/smoke/multi_seed_smoke_duels.yaml
 ```
 
 Outputs are written to `outputs/<experiment_name>/`:

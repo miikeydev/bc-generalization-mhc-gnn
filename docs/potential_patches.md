@@ -31,11 +31,11 @@ Run a real depth sweep instead of isolated runs.
   - `src/experiments/collect_results.py`
   - `src/experiments/plot_depth_curves.py`
 - Depth sweeps run on:
-  - mixed setup: `configs/depth_sweep.yaml`
+  - mixed setup: `configs/sweeps/depth_sweep.yaml`
   - deep+HC setups:
-    - `configs/depth_sweep_gcnii_hc.yaml`
-    - `configs/depth_sweep_appnp_hc.yaml`
-    - `configs/depth_sweep_jknet_hc.yaml`
+    - `configs/sweeps/depth_sweep_gcnii_hc.yaml`
+    - `configs/sweeps/depth_sweep_appnp_hc.yaml`
+    - `configs/sweeps/depth_sweep_jknet_hc.yaml`
 - Outputs saved under `outputs/depth_sweep*`
 
 ### Evaluation
@@ -50,13 +50,16 @@ Label: `paper-aligned`
 Avoid single-seed conclusions.
 
 ### Remaining
-- Run each setup with `3-5` seeds
+- Run multi-seed on depth scaling with a staged protocol:
+  - Stage A: keep full depth maps in single-seed (`L={2,4,8,16,32}`)
+  - Stage B: run `3` seeds on key depths (`L={2,8,16,32}`)
+  - Stage C: run `5` seeds on critical checkpoints (best depth + deepest depth + failure depth)
 - Aggregate metrics to `mean ± std`
 - Save per-seed and aggregated outputs
 - Report confidence/stability in final comparisons
 
 ### Current Gap
-- Existing sweeps are single-seed
+- Multi-seed exists for duels/full runs, but depth sweeps are not yet statistically consolidated
 
 ## 4) Core Ablations for HC/mHC/mHC-lite
 Status: `todo`  

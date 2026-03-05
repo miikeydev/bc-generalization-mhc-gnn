@@ -1,9 +1,0 @@
-seeds: [0, 1, 2, 3, 4]
-
-output_root: outputs/multi_seed
-
-base_configs:
-  - configs/multi_seed_gcn.yaml
-  - configs/multi_seed_mhc_gcn.yaml
-  - configs/multi_seed_gcnii.yaml
-  - configs/multi_seed_mhc_gcnii.yaml

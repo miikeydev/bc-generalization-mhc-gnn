@@ -1,0 +1,304 @@
+common:
+  device: auto
+  data:
+    train_graphs: 80
+    val_graphs: 20
+    test_graphs_id: 20
+    test_graphs_ood: 20
+    train_num_nodes: 100
+    test_num_nodes: 500
+    average_degree: 8
+    train_families: [er, ba, sbm]
+    ood_families: [ws, rgg]
+    feature_mode: structural_only
+    lap_pe_dim: 8
+    random_feature_dim: 16
+    bc_approximation_k: null
+    train_sign_flip_lappe: true
+  training:
+    epochs: 50
+    batch_size: 4
+    learning_rate: 0.001
+    weight_decay: 0.00001
+    ranking_pairs_per_node: 30
+    patience: 10
+  evaluation:
+    topk_values: [10, 20, 50]
+    topk_ratios: [0.01, 0.05]
+
+models:
+  gcn:
+    experiment:
+      name: gcn
+    model:
+      name: gcn
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+
+  sage:
+    experiment:
+      name: sage
+    model:
+      name: sage
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+
+  gat:
+    experiment:
+      name: gat
+    model:
+      name: gat
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      num_heads: 4
+
+  gin:
+    experiment:
+      name: gin
+    model:
+      name: gin
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+
+  gcnii:
+    experiment:
+      name: gcnii
+    model:
+      name: gcnii
+      hidden_dim: 128
+      num_layers: 16
+      dropout: 0.1
+      alpha: 0.1
+      theta: 0.5
+
+  appnp:
+    experiment:
+      name: appnp
+    model:
+      name: appnp
+      hidden_dim: 128
+      num_layers: 2
+      dropout: 0.1
+      alpha: 0.1
+      K: 10
+
+  jknet:
+    experiment:
+      name: jknet
+    model:
+      name: jknet
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      mode: max
+
+  hc_gcn:
+    experiment:
+      name: hc_gcn
+    model:
+      name: hc_gnn
+      gnn_type: gcn
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+
+  hc_gcnii:
+    experiment:
+      name: hc_gcnii
+    model:
+      name: hc_gnn
+      gnn_type: gcnii
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+      alpha: 0.1
+      theta: 0.5
+
+  hc_appnp:
+    experiment:
+      name: hc_appnp
+    model:
+      name: hc_gnn
+      gnn_type: appnp
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+      alpha: 0.1
+      K: 10
+
+  hc_jknet:
+    experiment:
+      name: hc_jknet
+    model:
+      name: hc_gnn
+      gnn_type: jknet
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+      mode: max
+
+  mhc_gcn:
+    experiment:
+      name: mhc_gcn
+    model:
+      name: mhc_gnn
+      gnn_type: gcn
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+
+  mhc_gcnii:
+    experiment:
+      name: mhc_gcnii
+    model:
+      name: mhc_gnn
+      gnn_type: gcnii
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+      alpha: 0.1
+      theta: 0.5
+
+  mhc_appnp:
+    experiment:
+      name: mhc_appnp
+    model:
+      name: mhc_gnn
+      gnn_type: appnp
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+      alpha: 0.1
+      K: 10
+
+  mhc_jknet:
+    experiment:
+      name: mhc_jknet
+    model:
+      name: mhc_gnn
+      gnn_type: jknet
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+      mode: max
+
+  mhc_lite_gcn:
+    experiment:
+      name: mhc_lite_gcn
+    model:
+      name: mhc_lite_gnn
+      gnn_type: gcn
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      mhc_lite_max_permutations: null
+      mhc_lite_permutation_seed: 0
+
+  mhc_lite_gcnii:
+    experiment:
+      name: mhc_lite_gcnii
+    model:
+      name: mhc_lite_gnn
+      gnn_type: gcnii
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      mhc_lite_max_permutations: null
+      mhc_lite_permutation_seed: 0
+      alpha: 0.1
+      theta: 0.5
+
+  mhc_lite_appnp:
+    experiment:
+      name: mhc_lite_appnp
+    model:
+      name: mhc_lite_gnn
+      gnn_type: appnp
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      mhc_lite_max_permutations: null
+      mhc_lite_permutation_seed: 0
+      alpha: 0.1
+      K: 10
+
+  mhc_lite_jknet:
+    experiment:
+      name: mhc_lite_jknet
+    model:
+      name: mhc_lite_gnn
+      gnn_type: jknet
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      mhc_lite_max_permutations: null
+      mhc_lite_permutation_seed: 0
+      mode: max

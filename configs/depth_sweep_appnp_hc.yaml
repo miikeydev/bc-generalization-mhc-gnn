@@ -1,9 +1,0 @@
-depths: [2, 4, 8, 16, 32]
-
-base_configs:
-  - configs/baseline_appnp.yaml
-  - configs/hc_appnp.yaml
-  - configs/mhc_appnp.yaml
-  - configs/mhc_lite_appnp.yaml
-
-output_root: outputs/depth_sweep_appnp_hc

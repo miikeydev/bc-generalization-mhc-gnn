@@ -1,0 +1,37 @@
+seeds: [0, 1]
+
+output_root: outputs/multi_seed_smoke_catalog
+
+catalog: configs/multi_seed/catalog.yaml
+model_ids: [gcn, mhc_gcn]
+
+common_overrides:
+  data:
+    train_graphs: 6
+    val_graphs: 2
+    test_graphs_id: 2
+    test_graphs_ood: 2
+    train_num_nodes: 40
+    test_num_nodes: 80
+    average_degree: 6
+    lap_pe_dim: 4
+    random_feature_dim: 8
+  model:
+    hidden_dim: 32
+    num_layers: 2
+  training:
+    epochs: 3
+    batch_size: 2
+    ranking_pairs_per_node: 10
+    patience: 3
+  evaluation:
+    topk_values: [5, 10]
+    topk_ratios: [0.05]
+
+overrides_by_model:
+  gcn:
+    experiment:
+      name: smoke_gcn
+  mhc_gcn:
+    experiment:
+      name: smoke_mhc_gcn
