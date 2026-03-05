@@ -14,12 +14,19 @@ uv run python -m src.train --config <path>
 Used with:
 ```bash
 uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_full.yaml
 ```
+
+Notes:
+- `seed` runs single-seed depth sweep.
+- `seeds: [..]` runs multi-seed depth sweep in one command.
+- optional CLI override: `--seeds 0 1 2 3 4`.
 
 ## Multi-seed benchmarks
 - `configs/multi_seed/catalog.yaml`: shared model catalog + common protocol
 - `configs/multi_seed/duels/`: targeted comparisons
 - `configs/multi_seed/full/`: full benchmark matrix
+- standard seed set: `[0, 1, 2, 3, 4]`
 
 Used with:
 ```bash

@@ -104,11 +104,43 @@ Reduce hyperparameter bias without full brute-force sweeps.
 
 ### Scope
 - Add a lightweight search protocol (Optuna or random search) on validation only
+- Tune by backbone family:
+  - `GCN`
+  - `GCNII`
+  - `APPNP`
+  - `JKNet`
 - Use a two-stage budget:
-  - proxy stage (reduced epochs/data)
-  - confirmation stage (full setup on top candidates)
-- Freeze selected hyperparameters before final multi-seed depth sweeps
+  - proxy stage (reduced epochs/data, `1` seed)
+  - confirmation stage (full setup on top candidates, `3` seeds)
+- Freeze selected hyperparameters before final multi-seed depth sweeps (`5` seeds)
+
+### TODO Checklist
+- Define search spaces (`lr`, `weight_decay`, `dropout`, `ranking_pairs_per_node` + family-specific params)
+- Add `configs/hp_search/` manifests for each family
+- Add runner script with pruning and deterministic trial seeds
+- Export `best_params.json` per family
+- Update `configs/multi_seed/catalog.yaml` with frozen family-wise hyperparameters
 
 ### Evaluation
 - Delta versus current defaults on `val/test_id/test_ood`
 - Report search budget and selected settings
+
+## 7) Execution Order
+Status: `todo`  
+Label: `paper-aligned`
+
+### Goal
+Run the remaining work in a defensible order and avoid scope drift.
+
+### Order
+1. Run `5`-seed duels first (`multi_seed_duels.yaml` and `multi_seed_duels_v2.yaml`) and freeze the baseline statistical table (`mean ± std`).
+2. Close the `GCNII` question with depth-focused multi-seed runs (`L={4,8,16,32}`), then expand to critical depths with `5` seeds.
+3. Execute family-wise hyperparameter search (`GCN`, `GCNII`, `APPNP`, `JKNet`) using proxy budget, then confirmation budget.
+4. Freeze tuned hyperparameters in `configs/multi_seed/catalog.yaml`.
+5. Re-run final multi-seed duels with frozen hyperparameters.
+6. Produce final ranking + Top-K report with stability analysis (ID/OOD).
+
+### Exit Criteria
+- Main claims are backed by `mean ± std` over fixed seeds.
+- `GCNII + mHC` conclusion is based on multiple depths, not only `L=16`.
+- Final tables include both ranking (`Kendall/Spearman`) and Top-K (`Precision@K/NDCG@K`).

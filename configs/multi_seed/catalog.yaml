@@ -1,10 +1,10 @@
 common:
   device: auto
   data:
-    train_graphs: 80
-    val_graphs: 20
-    test_graphs_id: 20
-    test_graphs_ood: 20
+    train_graphs: 160
+    val_graphs: 30
+    test_graphs_id: 30
+    test_graphs_ood: 30
     train_num_nodes: 100
     test_num_nodes: 500
     average_degree: 8

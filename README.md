@@ -34,6 +34,7 @@ uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/d
 uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_gcnii_hc.yaml
 uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_appnp_hc.yaml
 uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_jknet_hc.yaml
+uv run python -m src.experiments.run_depth_sweep --sweep-config configs/sweeps/depth_sweep_full.yaml
 uv run python -m src.experiments.collect_results --sweep-index outputs/depth_sweep/sweep_index.json --output-csv outputs/depth_sweep/depth_results.csv
 uv run python -m src.experiments.plot_depth_curves --csv outputs/depth_sweep/depth_results.csv --figures-dir outputs/depth_sweep/figures
 ```
