@@ -1,0 +1,11 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/multi_seed
+
+catalog: configs/multi_seed/catalog.yaml
+model_ids: [jknet, mhc_jknet, appnp, mhc_appnp, mhc_lite_gcnii]
+
+overrides_by_model:
+  mhc_lite_gcnii:
+    model:
+      num_layers: 16

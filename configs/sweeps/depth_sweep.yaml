@@ -1,0 +1,16 @@
+depths: [2, 4, 8, 16, 32]
+
+catalog: configs/multi_seed/catalog.yaml
+model_ids:
+  - gcn
+  - sage
+  - gat
+  - gin
+  - gcnii
+  - appnp
+  - jknet
+  - hc_gcn
+  - mhc_gcn
+  - mhc_lite_gcn
+
+output_root: outputs/depth_sweep

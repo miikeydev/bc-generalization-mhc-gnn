@@ -1,9 +1,0 @@
-depths: [2, 4, 8, 16, 32]
-
-base_configs:
-  - configs/baseline_jknet.yaml
-  - configs/hc_jknet.yaml
-  - configs/mhc_jknet.yaml
-  - configs/mhc_lite_jknet.yaml
-
-output_root: outputs/depth_sweep_jknet_hc

@@ -1,0 +1,14 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/multi_seed
+
+catalog: configs/multi_seed/catalog.yaml
+model_ids: [gcn, mhc_gcn, gcnii, mhc_gcnii]
+
+overrides_by_model:
+  gcnii:
+    model:
+      num_layers: 16
+  mhc_gcnii:
+    model:
+      num_layers: 16

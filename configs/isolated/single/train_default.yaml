@@ -1,7 +1,7 @@
 experiment:
-  name: mhc_appnp
-  seed: 42
-  output_dir: outputs/mhc_appnp
+  name: gcn_single
+  output_dir: outputs/single/gcn
+  seed: 0
 
 device: auto
 
@@ -22,19 +22,10 @@ data:
   train_sign_flip_lappe: true
 
 model:
-  name: mhc_gnn
-  gnn_type: appnp
+  name: gcn
   hidden_dim: 128
   num_layers: 4
   dropout: 0.1
-  n_streams: 4
-  use_dynamic: true
-  use_static: true
-  mapping_init_alpha: 0.01
-  sinkhorn_tau: 0.1
-  sinkhorn_iters: 20
-  alpha: 0.1
-  K: 10
 
 training:
   epochs: 50

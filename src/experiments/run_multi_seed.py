@@ -4,13 +4,14 @@ import argparse
 import copy
 from pathlib import Path
 
+from src.experiments.aggregate_seeds import aggregate_model_dir
 from src.train import train_from_config
 from src.utils import ensure_dir, load_config, write_json
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sweep-config", default="configs/sweeps/depth_sweep.yaml")
+    parser.add_argument("--sweep-config", default="configs/multi_seed/duels/multi_seed_duels.yaml")
     return parser.parse_args()
 
 
@@ -54,8 +55,6 @@ def _build_from_catalog(sweep: dict, sweep_config_path: Path) -> list[dict]:
         cfg = _merge_dicts(cfg, common_overrides)
         model_overrides = overrides_by_model.get(model_id, {})
         cfg = _merge_dicts(cfg, model_overrides)
-        if "model" not in cfg or "name" not in cfg["model"]:
-            raise ValueError(f"Missing model.name for model_id '{model_id}'")
         if "experiment" not in cfg or "name" not in cfg["experiment"]:
             raise ValueError(f"Missing experiment.name for model_id '{model_id}'")
         configs.append(cfg)
@@ -71,9 +70,9 @@ def _load_base_configs(sweep: dict, sweep_config_path: Path) -> list[dict]:
     from_catalog = _build_from_catalog(sweep, sweep_config_path)
     if from_catalog:
         return from_catalog
-    from_base = _build_from_base_configs(sweep, sweep_config_path)
-    if from_base:
-        return from_base
+    from_base_configs = _build_from_base_configs(sweep, sweep_config_path)
+    if from_base_configs:
+        return from_base_configs
     raise ValueError("Sweep config must define either (catalog + model_ids) or base_configs")
 
 
@@ -82,27 +81,28 @@ def main() -> None:
     sweep_config_path = Path(args.sweep_config)
     sweep = load_config(sweep_config_path)
 
-    depths = [int(d) for d in sweep["depths"]]
-    output_root = sweep["output_root"]
+    seeds = [int(s) for s in sweep["seeds"]]
+    output_root = Path(sweep["output_root"])
     base_configs = _load_base_configs(sweep, sweep_config_path)
 
-    results: list[dict] = []
+    all_results: list[dict] = []
 
     for base_cfg in base_configs:
-        model_name = base_cfg["model"]["name"]
+        model_name = base_cfg["experiment"]["name"]
+        model_dir = output_root / model_name
+        per_seed_results: list[dict] = []
 
-        for depth in depths:
+        for seed in seeds:
             cfg = copy.deepcopy(base_cfg)
-            cfg["model"]["num_layers"] = depth
-            cfg["experiment"]["name"] = f"{model_name}_L{depth}"
-            cfg["experiment"]["output_dir"] = f"{output_root}/{model_name}/L{depth}"
+            cfg["experiment"]["seed"] = seed
+            cfg["experiment"]["output_dir"] = str(model_dir / f"seed_{seed}")
 
-            print(f"\n{'='*60}\n{model_name}  L={depth}\n{'='*60}")
+            print(f"\n{'='*60}\n{model_name}  seed={seed}\n{'='*60}")
             summary = train_from_config(cfg)
 
             row: dict = {
                 "model": model_name,
-                "depth": depth,
+                "seed": seed,
                 "output_dir": cfg["experiment"]["output_dir"],
                 "best_epoch": summary["best_epoch"],
                 "best_val_kendall": summary["best_val_kendall"],
@@ -111,12 +111,20 @@ def main() -> None:
                 for k, v in summary[split].items():
                     row[f"{split}_{k}"] = v
 
-            results.append(row)
-            print(f"  val_kendall={row.get('val_kendall', 0):.4f}  test_id_kendall={row.get('test_id_kendall', 0):.4f}  test_ood_kendall={row.get('test_ood_kendall', 0):.4f}")
+            per_seed_results.append(row)
+            print(
+                f"  val_kendall={row.get('val_kendall', 0):.4f}"
+                f"  test_id_kendall={row.get('test_id_kendall', 0):.4f}"
+                f"  test_ood_kendall={row.get('test_ood_kendall', 0):.4f}"
+            )
 
-    out_dir = ensure_dir(output_root)
-    write_json(out_dir / "sweep_index.json", results)
-    print(f"\nSweep done. Index saved to {output_root}/sweep_index.json")
+        ensure_dir(model_dir)
+        write_json(model_dir / "per_seed_results.json", per_seed_results)
+        aggregate_model_dir(model_dir)
+        all_results.extend(per_seed_results)
+
+    write_json(ensure_dir(output_root) / "all_results.json", all_results)
+    print(f"\nSweep done. All results under {output_root}/")
 
 
 if __name__ == "__main__":

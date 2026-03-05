@@ -185,7 +185,7 @@ def _batch_index(batch) -> torch.Tensor:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/baseline_gcn.yaml")
+    parser.add_argument("--config", type=str, default="configs/isolated/single/train_default.yaml")
     return parser.parse_args()
 
 
