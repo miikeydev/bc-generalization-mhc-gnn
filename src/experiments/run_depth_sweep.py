@@ -94,6 +94,13 @@ def _seed_output_root(base_output_root: str, seed: int, is_multi_seed: bool) -> 
     return base_output_root
 
 
+def _run_label(cfg: dict) -> str:
+    experiment_name = cfg.get("experiment", {}).get("name")
+    if experiment_name:
+        return str(experiment_name)
+    return str(cfg["model"]["name"])
+
+
 def main() -> None:
     args = parse_args()
     sweep_config_path = Path(args.sweep_config)
@@ -105,6 +112,15 @@ def main() -> None:
     base_configs = _load_base_configs(sweep, sweep_config_path)
     is_multi_seed = len(seeds) > 1
 
+    labels = [_run_label(cfg) for cfg in base_configs]
+    duplicates = sorted({label for label in labels if labels.count(label) > 1})
+    if duplicates:
+        raise ValueError(
+            "Duplicate run labels detected in sweep config: "
+            + ", ".join(duplicates)
+            + ". Ensure experiment.name is unique per model variant."
+        )
+
     all_results: list[dict] = []
 
     for sweep_seed in seeds:
@@ -113,20 +129,22 @@ def main() -> None:
 
         for base_cfg in base_configs:
             model_name = base_cfg["model"]["name"]
+            run_label = _run_label(base_cfg)
 
             for depth in depths:
                 cfg = copy.deepcopy(base_cfg)
                 cfg["model"]["num_layers"] = depth
                 cfg.setdefault("experiment", {})
                 cfg["experiment"]["seed"] = sweep_seed
-                cfg["experiment"]["name"] = f"{model_name}_L{depth}"
-                cfg["experiment"]["output_dir"] = f"{seed_output_root}/{model_name}/L{depth}"
+                cfg["experiment"]["name"] = f"{run_label}_L{depth}"
+                cfg["experiment"]["output_dir"] = f"{seed_output_root}/{run_label}/L{depth}"
 
-                print(f"\n{'='*60}\nseed={sweep_seed}  {model_name}  L={depth}\n{'='*60}")
+                print(f"\n{'='*60}\nseed={sweep_seed}  {run_label}  L={depth}\n{'='*60}")
                 summary = train_from_config(cfg)
 
                 row: dict = {
-                    "model": model_name,
+                    "model": run_label,
+                    "model_name": model_name,
                     "depth": depth,
                     "output_dir": cfg["experiment"]["output_dir"],
                     "seed": sweep_seed,
