@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import copy
 from pathlib import Path
+from typing import Any
 
 import torch
 from torch_geometric.loader import DataLoader
@@ -18,8 +19,10 @@ def train_from_config(config: dict) -> dict:
     seed = int(config["experiment"]["seed"])
     set_global_seed(seed)
 
-    output_dir = ensure_dir(config["experiment"]["output_dir"])
-    write_json(output_dir / "resolved_config.json", config)
+    save_artifacts = bool(config["experiment"].get("save_artifacts", True))
+    output_dir = ensure_dir(config["experiment"]["output_dir"]) if save_artifacts else None
+    if output_dir is not None:
+        write_json(output_dir / "resolved_config.json", config)
 
     datasets = build_inductive_datasets(config=config, seed=seed)
     batch_size = int(config["training"]["batch_size"])
@@ -41,6 +44,7 @@ def train_from_config(config: dict) -> dict:
         lr=float(config["training"]["learning_rate"]),
         weight_decay=float(config["training"]["weight_decay"]),
     )
+    scheduler = _build_scheduler(optimizer, config["training"].get("scheduler"))
     ranking_loss = PairwiseRankingLoss(pairs_per_node=int(config["training"]["ranking_pairs_per_node"]))
 
     topk_values = [int(k) for k in config["evaluation"]["topk_values"]]
@@ -79,15 +83,18 @@ def train_from_config(config: dict) -> dict:
             "val_loss": val_metrics.get("loss", 0.0),
             "val_spearman": val_metrics.get("spearman", 0.0),
             "val_kendall": val_metrics.get("kendall", 0.0),
+            "learning_rate": float(optimizer.param_groups[0]["lr"]),
         }
         history.append(epoch_record)
 
         current_kendall = val_metrics.get("kendall", 0.0)
+        _step_scheduler(scheduler, config["training"].get("scheduler"), val_metrics)
         if current_kendall > best_val_kendall:
             best_val_kendall = current_kendall
             best_epoch = epoch
             best_state = copy.deepcopy(model.state_dict())
-            torch.save(best_state, output_dir / "best_model.pt")
+            if output_dir is not None:
+                torch.save(best_state, output_dir / "best_model.pt")
             patience_count = 0
         else:
             patience_count += 1
@@ -133,7 +140,8 @@ def train_from_config(config: dict) -> dict:
         "history": history,
     }
 
-    write_json(output_dir / "metrics.json", summary)
+    if output_dir is not None:
+        write_json(output_dir / "metrics.json", summary)
     return summary
 
 
@@ -181,6 +189,36 @@ def _batch_index(batch) -> torch.Tensor:
     if hasattr(batch, "batch") and batch.batch is not None:
         return batch.batch
     return torch.zeros(batch.x.shape[0], dtype=torch.long, device=batch.x.device)
+
+
+def _build_scheduler(
+    optimizer: torch.optim.Optimizer,
+    scheduler_cfg: dict[str, Any] | None,
+):
+    if not scheduler_cfg:
+        return None
+    scheduler_name = str(scheduler_cfg.get("name", "none")).lower()
+    if scheduler_name in {"none", "null"}:
+        return None
+    if scheduler_name == "reduce_on_plateau":
+        return torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode=str(scheduler_cfg.get("mode", "max")),
+            factor=float(scheduler_cfg.get("factor", 0.5)),
+            patience=int(scheduler_cfg.get("patience", 10)),
+            min_lr=float(scheduler_cfg.get("min_lr", 0.0)),
+        )
+    raise ValueError(f"Unsupported scheduler name: {scheduler_name}")
+
+
+def _step_scheduler(scheduler, scheduler_cfg: dict[str, Any] | None, val_metrics: dict[str, float]) -> None:
+    if scheduler is None or scheduler_cfg is None:
+        return
+    scheduler_name = str(scheduler_cfg.get("name", "none")).lower()
+    if scheduler_name == "reduce_on_plateau":
+        monitor = str(scheduler_cfg.get("monitor", "kendall")).lower()
+        metric_key = monitor.removeprefix("val_")
+        scheduler.step(float(val_metrics.get(metric_key, 0.0)))
 
 
 def parse_args() -> argparse.Namespace:

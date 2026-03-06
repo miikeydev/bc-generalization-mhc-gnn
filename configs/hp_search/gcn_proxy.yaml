@@ -1,0 +1,70 @@
+study:
+  name: gcn_proxy
+  output_dir: outputs/hp_search/gcn_proxy
+  n_trials: 15
+  direction: maximize
+  sampler_seed: 0
+  trial_seed_base: 1000
+  pruner:
+    name: median
+    n_startup_trials: 5
+    n_warmup_steps: 3
+
+catalog: configs/multi_seed/catalog.yaml
+
+objective:
+  metric: best_val_kendall
+  model_ids:
+    - gcn
+    - mhc_gcn
+  depths: [2, 4, 8]
+  save_trial_artifacts: false
+
+proxy_overrides:
+  experiment:
+    save_artifacts: false
+  data:
+    train_graphs: 120
+    val_graphs: 30
+    test_graphs_id: 30
+    test_graphs_ood: 30
+    train_num_nodes: 100
+    test_num_nodes: 500
+  training:
+    epochs: 120
+    patience: 20
+    scheduler:
+      name: reduce_on_plateau
+      monitor: val_kendall
+      mode: max
+      factor: 0.5
+      patience: 8
+      min_lr: 0.00001
+
+search_space:
+  training.learning_rate:
+    type: float_log
+    low: 0.0001
+    high: 0.005
+  training.weight_decay:
+    type: float_log
+    low: 0.00001
+    high: 0.001
+  model.dropout:
+    type: categorical
+    choices: [0.1, 0.3, 0.5]
+  training.ranking_pairs_per_node:
+    type: categorical
+    choices: [30, 60, 90]
+  model.n_streams:
+    type: categorical
+    choices: [2, 4]
+  model.sinkhorn_tau:
+    type: categorical
+    choices: [0.05, 0.1, 0.2]
+  model.sinkhorn_iters:
+    type: categorical
+    choices: [10, 20]
+  model.mapping_init_alpha:
+    type: categorical
+    choices: [0.005, 0.01, 0.02]

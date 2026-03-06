@@ -1,0 +1,59 @@
+study:
+  name: hp_search_smoke
+  output_dir: outputs/hp_search/smoke
+  n_trials: 1
+  direction: maximize
+  sampler_seed: 0
+  trial_seed_base: 9000
+  pruner:
+    name: none
+
+catalog: configs/multi_seed/catalog.yaml
+
+objective:
+  metric: best_val_kendall
+  model_ids:
+    - gcn
+    - mhc_gcn
+  depths: [2]
+  save_trial_artifacts: false
+
+proxy_overrides:
+  experiment:
+    save_artifacts: false
+  data:
+    train_graphs: 8
+    val_graphs: 4
+    test_graphs_id: 4
+    test_graphs_ood: 4
+    train_num_nodes: 40
+    test_num_nodes: 80
+  training:
+    epochs: 2
+    patience: 2
+
+search_space:
+  training.learning_rate:
+    type: categorical
+    choices: [0.001]
+  training.weight_decay:
+    type: categorical
+    choices: [0.00001]
+  model.dropout:
+    type: categorical
+    choices: [0.1]
+  training.ranking_pairs_per_node:
+    type: categorical
+    choices: [10]
+  model.n_streams:
+    type: categorical
+    choices: [2]
+  model.sinkhorn_tau:
+    type: categorical
+    choices: [0.1]
+  model.sinkhorn_iters:
+    type: categorical
+    choices: [10]
+  model.mapping_init_alpha:
+    type: categorical
+    choices: [0.01]

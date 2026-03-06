@@ -128,6 +128,7 @@ external/
 docs/_build/
 docs/External
 docs/campaigns/
+docs/research_log.md
 /site
 
 # =========================
