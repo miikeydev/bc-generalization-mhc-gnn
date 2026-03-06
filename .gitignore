@@ -127,6 +127,7 @@ docs/papers/
 external/
 docs/_build/
 docs/External
+docs/campaigns/
 /site
 
 # =========================
