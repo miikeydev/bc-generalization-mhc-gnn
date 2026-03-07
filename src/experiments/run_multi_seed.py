@@ -61,19 +61,47 @@ def _build_from_catalog(sweep: dict, sweep_config_path: Path) -> list[dict]:
     return configs
 
 
+def _build_from_experiments(sweep: dict, sweep_config_path: Path) -> list[dict]:
+    catalog_path_value = sweep.get("catalog")
+    experiments = sweep.get("experiments")
+    if catalog_path_value is None or experiments is None:
+        return []
+
+    catalog = load_config(_resolve_path(str(catalog_path_value), sweep_config_path))
+    common = catalog.get("common", {})
+    models = catalog.get("models", {})
+    common_overrides = sweep.get("common_overrides", {})
+
+    configs: list[dict] = []
+    for experiment in experiments:
+        model_id = str(experiment["model_id"])
+        if model_id not in models:
+            raise ValueError(f"Unknown model_id '{model_id}' in sweep config")
+        cfg = _merge_dicts(common, models[model_id])
+        cfg = _merge_dicts(cfg, common_overrides)
+        cfg = _merge_dicts(cfg, experiment.get("overrides", {}))
+        cfg.setdefault("experiment", {})
+        cfg["experiment"]["name"] = str(experiment["name"])
+        configs.append(cfg)
+    return configs
+
+
 def _build_from_base_configs(sweep: dict, sweep_config_path: Path) -> list[dict]:
     base_paths = sweep.get("base_configs", [])
     return [load_config(_resolve_path(str(path), sweep_config_path)) for path in base_paths]
 
 
 def _load_base_configs(sweep: dict, sweep_config_path: Path) -> list[dict]:
+    from_experiments = _build_from_experiments(sweep, sweep_config_path)
+    if from_experiments:
+        return from_experiments
     from_catalog = _build_from_catalog(sweep, sweep_config_path)
     if from_catalog:
         return from_catalog
     from_base_configs = _build_from_base_configs(sweep, sweep_config_path)
     if from_base_configs:
         return from_base_configs
-    raise ValueError("Sweep config must define either (catalog + model_ids) or base_configs")
+    raise ValueError("Sweep config must define either experiments, (catalog + model_ids), or base_configs")
 
 
 def main() -> None:

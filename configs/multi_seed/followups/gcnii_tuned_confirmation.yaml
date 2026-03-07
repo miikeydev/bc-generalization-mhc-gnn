@@ -1,0 +1,202 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/confirmations/gcnii_tuned_confirmation
+
+catalog: configs/multi_seed/catalog.yaml
+
+trial_11_training: &trial_11_training
+  epochs: 120
+  patience: 20
+  learning_rate: 0.001074578295300149
+  weight_decay: 0.000043403133556092974
+  ranking_pairs_per_node: 30
+  scheduler:
+    name: reduce_on_plateau
+    monitor: val_kendall
+    mode: max
+    factor: 0.5
+    patience: 8
+    min_lr: 0.00001
+
+trial_11_model: &trial_11_model
+  dropout: 0.1
+  n_streams: 4
+  sinkhorn_tau: 0.1
+  sinkhorn_iters: 10
+  mapping_init_alpha: 0.02
+  alpha: 0.1
+  theta: 0.5
+
+trial_13_training: &trial_13_training
+  epochs: 120
+  patience: 20
+  learning_rate: 0.002631143104662853
+  weight_decay: 0.000044399265371094375
+  ranking_pairs_per_node: 30
+  scheduler:
+    name: reduce_on_plateau
+    monitor: val_kendall
+    mode: max
+    factor: 0.5
+    patience: 8
+    min_lr: 0.00001
+
+trial_13_model: &trial_13_model
+  dropout: 0.1
+  n_streams: 4
+  sinkhorn_tau: 0.1
+  sinkhorn_iters: 10
+  mapping_init_alpha: 0.02
+  alpha: 0.1
+  theta: 0.5
+
+trial_6_training: &trial_6_training
+  epochs: 120
+  patience: 20
+  learning_rate: 0.0009188309178426971
+  weight_decay: 0.00007291835638201717
+  ranking_pairs_per_node: 30
+  scheduler:
+    name: reduce_on_plateau
+    monitor: val_kendall
+    mode: max
+    factor: 0.5
+    patience: 8
+    min_lr: 0.00001
+
+trial_6_model: &trial_6_model
+  dropout: 0.1
+  n_streams: 4
+  sinkhorn_tau: 0.1
+  sinkhorn_iters: 10
+  mapping_init_alpha: 0.02
+  alpha: 0.1
+  theta: 1.0
+
+experiments:
+  - name: gcnii_t11_l2
+    model_id: gcnii
+    overrides:
+      training: *trial_11_training
+      model:
+        <<: *trial_11_model
+        num_layers: 2
+  - name: mhc_gcnii_t11_l2
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_11_training
+      model:
+        <<: *trial_11_model
+        num_layers: 2
+  - name: gcnii_t11_l8
+    model_id: gcnii
+    overrides:
+      training: *trial_11_training
+      model:
+        <<: *trial_11_model
+        num_layers: 8
+  - name: mhc_gcnii_t11_l8
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_11_training
+      model:
+        <<: *trial_11_model
+        num_layers: 8
+  - name: gcnii_t11_l16
+    model_id: gcnii
+    overrides:
+      training: *trial_11_training
+      model:
+        <<: *trial_11_model
+        num_layers: 16
+  - name: mhc_gcnii_t11_l16
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_11_training
+      model:
+        <<: *trial_11_model
+        num_layers: 16
+  - name: gcnii_t13_l2
+    model_id: gcnii
+    overrides:
+      training: *trial_13_training
+      model:
+        <<: *trial_13_model
+        num_layers: 2
+  - name: mhc_gcnii_t13_l2
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_13_training
+      model:
+        <<: *trial_13_model
+        num_layers: 2
+  - name: gcnii_t13_l8
+    model_id: gcnii
+    overrides:
+      training: *trial_13_training
+      model:
+        <<: *trial_13_model
+        num_layers: 8
+  - name: mhc_gcnii_t13_l8
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_13_training
+      model:
+        <<: *trial_13_model
+        num_layers: 8
+  - name: gcnii_t13_l16
+    model_id: gcnii
+    overrides:
+      training: *trial_13_training
+      model:
+        <<: *trial_13_model
+        num_layers: 16
+  - name: mhc_gcnii_t13_l16
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_13_training
+      model:
+        <<: *trial_13_model
+        num_layers: 16
+  - name: gcnii_t6_l2
+    model_id: gcnii
+    overrides:
+      training: *trial_6_training
+      model:
+        <<: *trial_6_model
+        num_layers: 2
+  - name: mhc_gcnii_t6_l2
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_6_training
+      model:
+        <<: *trial_6_model
+        num_layers: 2
+  - name: gcnii_t6_l8
+    model_id: gcnii
+    overrides:
+      training: *trial_6_training
+      model:
+        <<: *trial_6_model
+        num_layers: 8
+  - name: mhc_gcnii_t6_l8
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_6_training
+      model:
+        <<: *trial_6_model
+        num_layers: 8
+  - name: gcnii_t6_l16
+    model_id: gcnii
+    overrides:
+      training: *trial_6_training
+      model:
+        <<: *trial_6_model
+        num_layers: 16
+  - name: mhc_gcnii_t6_l16
+    model_id: mhc_gcnii
+    overrides:
+      training: *trial_6_training
+      model:
+        <<: *trial_6_model
+        num_layers: 16
