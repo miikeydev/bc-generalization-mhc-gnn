@@ -1,0 +1,92 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/finals/gcn_family_final
+
+catalog: configs/multi_seed/catalog.yaml
+
+reference_training: &reference_training
+  epochs: 120
+  patience: 20
+  learning_rate: 0.00022639943735170472
+  weight_decay: 0.000021019338091154404
+  ranking_pairs_per_node: 30
+  scheduler:
+    name: reduce_on_plateau
+    monitor: val_kendall
+    mode: max
+    factor: 0.5
+    patience: 8
+    min_lr: 0.00001
+
+reference_gcn_model: &reference_gcn_model
+  dropout: 0.1
+
+reference_hc_model: &reference_hc_model
+  dropout: 0.1
+  n_streams: 2
+  use_dynamic: true
+  use_static: true
+  mapping_init_alpha: 0.01
+  sinkhorn_tau: 0.2
+  sinkhorn_iters: 20
+
+experiments:
+  - name: gcn_l4
+    model_id: gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_gcn_model
+        num_layers: 4
+  - name: gcn_l8
+    model_id: gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_gcn_model
+        num_layers: 8
+
+  - name: hc_gcn_l4
+    model_id: hc_gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+        num_layers: 4
+  - name: hc_gcn_l8
+    model_id: hc_gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+        num_layers: 8
+
+  - name: mhc_gcn_l4
+    model_id: mhc_gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+        num_layers: 4
+  - name: mhc_gcn_l8
+    model_id: mhc_gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+        num_layers: 8
+
+  - name: mhc_lite_gcn_l4
+    model_id: mhc_lite_gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+        num_layers: 4
+  - name: mhc_lite_gcn_l8
+    model_id: mhc_lite_gcn
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+        num_layers: 8
