@@ -1,0 +1,21 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/real_graph_transfer/gcn_family_cora
+
+dataset:
+  name: Cora
+  root: data/real_graphs
+
+evaluation:
+  topk_values: [5, 10, 20, 50]
+  topk_ratios: [0.01, 0.05]
+
+experiments:
+  - name: gcn_l8
+    source_dir: outputs/finals/gcn_family_final/gcn_l8
+  - name: hc_gcn_l8
+    source_dir: outputs/finals/gcn_family_final/hc_gcn_l8
+  - name: mhc_gcn_l8
+    source_dir: outputs/finals/gcn_family_final/mhc_gcn_l8
+  - name: mhc_lite_gcn_l8
+    source_dir: outputs/finals/gcn_family_final/mhc_lite_gcn_l8
