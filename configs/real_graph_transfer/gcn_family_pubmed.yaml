@@ -1,9 +1,9 @@
 seeds: [0, 1, 2, 3, 4]
 
-output_root: outputs/real_graph_transfer/gcn_family_cora
+output_root: outputs/real_graph_transfer/gcn_family_pubmed
 
 dataset:
-  name: Cora
+  name: PubMed
   root: data/real_graphs
 
 evaluation:
