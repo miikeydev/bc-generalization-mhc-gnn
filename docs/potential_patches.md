@@ -165,6 +165,17 @@ Label: `paper-aligned`
 - The useful mechanism appears to be flexible multi-stream routing more than the Sinkhorn-constrained mixing itself
 
 ## Remaining TODO
-- Decide whether to stop at the `GCN` family conclusion or run a final targeted follow-up on `GCNII`
+- Run a residual-baseline sweep on the `GCN` family:
+  - `GCN`
+  - `GCN + residual`
+  - `HC-GCN`
+  - `mHC-GCN`
+  - `mHC-lite-GCN`
+  - on `L4` and `L8` with `5` seeds
+- Analyze `HC-GCN-L8` vs `mHC-GCN-L8` internal matrices on synthetic and `Cora`
+- Evaluate stronger convolutional baselines such as `EdgeConv` separately from the HC/mHC causal comparison
+- Revisit input features after the architectural comparison is settled:
+  - reduce or replace `LapPE`
+  - test more scalable global signals (`PageRank`, random-walk-style features, Fiedler-style alternatives)
 - Add a fair budget / parameter count comparison table if a paper-style final report is needed
 - Consolidate the final results into the main README or a short final report

@@ -31,3 +31,31 @@ class GCNNodeRegressor(nn.Module):
             hidden = torch.relu(hidden)
             hidden = self.dropout(hidden)
         return self.output_layer(hidden).squeeze(-1)
+
+
+class GCNResidualNodeRegressor(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        num_layers: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+        if num_layers < 1:
+            raise ValueError("num_layers must be >= 1")
+
+        self.input_proj = nn.Linear(input_dim, hidden_dim)
+        self.convs = nn.ModuleList(GCNConv(hidden_dim, hidden_dim) for _ in range(num_layers))
+        self.dropout = nn.Dropout(dropout)
+        self.output_layer = nn.Linear(hidden_dim, 1)
+
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        hidden = self.input_proj(x)
+        for conv in self.convs:
+            residual = hidden
+            hidden = conv(hidden, edge_index)
+            hidden = torch.relu(hidden)
+            hidden = self.dropout(hidden)
+            hidden = hidden + residual
+        return self.output_layer(hidden).squeeze(-1)

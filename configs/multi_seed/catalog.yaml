@@ -36,6 +36,15 @@ models:
       num_layers: 4
       dropout: 0.1
 
+  gcn_residual:
+    experiment:
+      name: gcn_residual
+    model:
+      name: gcn_residual
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+
   sage:
     experiment:
       name: sage

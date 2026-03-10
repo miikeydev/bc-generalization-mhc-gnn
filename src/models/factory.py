@@ -4,7 +4,7 @@ from torch import nn
 
 from .baselines_deep import APPNPNodeRegressor, GCNIINodeRegressor, JKNetNodeRegressor
 from .baselines_shallow import GATNodeRegressor, GINNodeRegressor, SAGENodeRegressor
-from .gcn_baseline import GCNNodeRegressor
+from .gcn_baseline import GCNNodeRegressor, GCNResidualNodeRegressor
 from .hyper_connection_gnn import HyperConnectionGNNRegressor
 
 
@@ -14,6 +14,14 @@ def build_model(config: dict, input_dim: int) -> nn.Module:
 
     if model_name == "gcn":
         return GCNNodeRegressor(
+            input_dim=input_dim,
+            hidden_dim=int(model_cfg["hidden_dim"]),
+            num_layers=int(model_cfg["num_layers"]),
+            dropout=float(model_cfg["dropout"]),
+        )
+
+    if model_name == "gcn_residual":
+        return GCNResidualNodeRegressor(
             input_dim=input_dim,
             hidden_dim=int(model_cfg["hidden_dim"]),
             num_layers=int(model_cfg["num_layers"]),
