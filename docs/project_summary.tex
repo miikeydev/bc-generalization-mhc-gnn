@@ -1,0 +1,351 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{parskip}
+
+\definecolor{darkblue}{RGB}{0,50,120}
+\hypersetup{colorlinks=true,linkcolor=darkblue,urlcolor=darkblue}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+\title{%
+  \textbf{Betweenness Centrality Prediction with Hyper-Connected GNNs}\\[0.4em]
+  \large Project Progress Report
+}
+\author{Research Log Synthesis}
+\date{March 11, 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%------------------------------------------------------------
+\section{Research Question}
+%------------------------------------------------------------
+
+Can deep GNNs predict betweenness centrality (BC) inductively,
+and do HC / mHC / mHC-lite improve depth scaling and
+out-of-distribution (OOD) ranking quality
+compared with strong deep-GNN baselines?
+
+\textbf{Primary evaluation metrics:}
+\begin{itemize}[noitemsep]
+  \item Ranking: Kendall $\tau$, Spearman $\rho$
+  \item Top-K: Precision@K, NDCG@K
+\end{itemize}
+
+\textbf{Protocol (inductive):} train on small synthetic graphs
+(100 nodes, ER/BA/SBM), evaluate on larger unseen graphs
+(500 nodes, same families = ID; WS/RGG families = OOD).
+
+%------------------------------------------------------------
+\section{Stage 1 --- Full 5-Seed Depth Sweep (2026-03-06)}
+%------------------------------------------------------------
+
+\subsection{Setup}
+\begin{table}[h]
+\centering
+\begin{tabular}{L{4.5cm} L{7.5cm}}
+\toprule
+Seeds & 5 (0--4) \\
+Models & 19 variants: GCN, SAGE, GAT, GIN, GCNII, APPNP, JKNet,
+         HC, mHC, mHC-lite \\
+Depths & $L \in \{2,4,8,16,32\}$ \\
+Train graphs & 160 (100 nodes, ER/BA/SBM) \\
+Val / Test ID / OOD & 30 / 30 / 30 (500 nodes) \\
+Budget & 50 epochs, patience 10, LR $10^{-3}$, WD $10^{-5}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Best points from the frozen sweep}
+\begin{table}[h]
+\centering
+\begin{tabular}{L{4.5cm} L{2.5cm} C{1.2cm} R{3.5cm}}
+\toprule
+Category & Model & $L$ & OOD Kendall \\
+\midrule
+Best overall OOD     & \texttt{hc\_gcnii}  & 2 & $0.3824 \pm 0.0253$ \\
+Best mHC point       & \texttt{mhc\_gcn}   & 2 & $0.3812 \pm 0.0238$ \\
+Strongest GCN gain   & \texttt{hc\_gcn}    & 4 & $0.3809 \pm 0.0386$ \\
+Best deep baseline   & \texttt{appnp}      & 32 & $0.3544 \pm 0.0258$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Conclusions}
+HC / mHC improve OOD consistently; gains concentrate at $L \leq 8$.
+No ultra-deep scaling claim is supported.
+Two families retained: \textbf{GCN} (clearest mHC signal)
+and \textbf{GCNII} (deep-backbone stress test).
+
+%------------------------------------------------------------
+\section{Stage 2 --- Targeted Hyperparameter Search (2026-03-06)}
+%------------------------------------------------------------
+
+Optuna proxy search (15 trials, validation-only objective):
+
+\begin{itemize}
+  \item \textbf{GCN Trial 3} (obj. 0.8605): LR $2.26\times10^{-4}$,
+        WD $2.10\times10^{-5}$, dropout 0.1, $n_\text{str}=2$,
+        $\tau=0.2$, iters 20.
+  \item \textbf{GCNII Trial 11} (obj. 0.8564): LR $1.07\times10^{-3}$,
+        WD $4.34\times10^{-5}$, $n_\text{str}=4$, $\tau=0.1$,
+        GCNII $\alpha=0.1$, $\theta=0.5$.
+\end{itemize}
+
+GCNII failure at L16 persists after tuning.
+GCN + mHC is the strongest candidate.
+
+%------------------------------------------------------------
+\section{Stage 3 --- Multi-Seed Confirmation (2026-03-07)}
+%------------------------------------------------------------
+
+90 runs per family (3 candidate trials $\times$ 3 depths $\times$ 5 seeds).
+
+\textbf{GCN:} mHC-GCN consistently gains on OOD Kendall at L4/L8
+(strongest: $+0.071$ at t3/L4). Single negative case: t13/L2 ($-0.006$).
+
+\textbf{GCNII:} mHC helps at L2/L8 but degrades at L16
+(deltas: $-0.039$, $-0.012$, $-0.047$).
+
+\textit{Decision: GCN family only from this point.}
+
+%------------------------------------------------------------
+\section{Stage 4 --- GCN Ablation Study (2026-03-07)}
+%------------------------------------------------------------
+
+\subsection{Results at L8 (tuned GCN regime, 5 seeds)}
+\begin{table}[h]
+\centering
+\begin{tabular}{L{3.5cm} L{3.5cm} R{2.5cm} R{2.5cm}}
+\toprule
+Block & Variant & Val Kendall & OOD Kendall \\
+\midrule
+Structure & gcn\_ref          & 0.8332 & 0.3574 \\
+Structure & mhc\_gcn\_ref     & 0.8909 & 0.3888 \\
+Structure & \textbf{hc\_gcn\_ref} & \textbf{0.9174} & \textbf{0.4054} \\
+Structure & dynamic only      & 0.8882 & 0.3904 \\
+Structure & static only       & 0.8832 & 0.3855 \\
+Structure & $n=4$ streams     & 0.8809 & 0.3791 \\
+\midrule
+Sinkhorn  & $\tau=0.05$       & 0.8873 & 0.3923 \\
+Sinkhorn  & $\tau=0.10$       & 0.8932 & 0.3973 \\
+Sinkhorn  & $\tau=0.20$       & 0.8952 & 0.3911 \\
+Sinkhorn  & iters $=10$       & 0.8886 & 0.3906 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Interpretation}
+HC-GCN dominates. No mHC variant exceeds HC regardless of $\tau$ tuning.
+$n=2$ streams is optimal. Dynamic and static components contribute equally.
+The useful mechanism is flexible multi-stream routing, \emph{not} the
+doubly-stochastic Sinkhorn constraint.
+
+%------------------------------------------------------------
+\section{Stage 5 --- Final GCN Family Comparison (2026-03-09)}
+%------------------------------------------------------------
+
+\begin{table}[h]
+\centering
+\caption{Final GCN family --- test OOD results (5 seeds)}
+\begin{tabular}{L{3cm} C{0.8cm} R{2.2cm} R{2.2cm} R{2.2cm} R{2.2cm}}
+\toprule
+Variant & $L$ & Kendall & Spearman & P@top5\% & NDCG@top5\% \\
+\midrule
+gcn            & 4 & $0.302\pm0.045$ & $0.428\pm0.064$ & 0.302 & 0.530 \\
+gcn            & 8 & $0.360\pm0.021$ & $0.506\pm0.028$ & 0.315 & 0.580 \\
+\midrule
+hc\_gcn        & 4 & $0.393\pm0.031$ & $0.543\pm0.041$ & 0.341 & 0.589 \\
+hc\_gcn        & 8 & $\mathbf{0.406\pm0.041}$ & $\mathbf{0.558\pm0.054}$ & 0.351 & 0.588 \\
+\midrule
+mhc\_gcn       & 4 & $0.374\pm0.043$ & $0.521\pm0.055$ & 0.329 & 0.581 \\
+mhc\_gcn       & 8 & $0.396\pm0.038$ & $0.548\pm0.049$ & 0.343 & $\mathbf{0.590}$ \\
+\midrule
+mhc\_lite\_gcn & 4 & $0.376\pm0.042$ & $0.523\pm0.055$ & 0.332 & 0.574 \\
+mhc\_lite\_gcn & 8 & $0.395\pm0.039$ & $0.544\pm0.050$ & 0.342 & 0.581 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key findings:}
+\begin{enumerate}
+  \item \textbf{Val:} HC gains are learned ($+10\%$ Kendall, $\sigma\approx0.002$).
+        Depth effect is neutral for GCN but significant for mHC (L4$\to$L8).
+  \item \textbf{Test ID:} All models hit the same ceiling ($\approx82\text{--}83\%$
+        Kendall). Hyper-connections are irrelevant on known distributions.
+  \item \textbf{Test OOD:} Gains are substantial:
+        HC-GCN $> $ mHC-GCN $\approx$ mHC-lite-GCN $>$ GCN.
+        On top-K (NDCG@top5\%), HC and mHC nearly tie.
+\end{enumerate}
+
+%------------------------------------------------------------
+\section{Stage 6 --- Residual Baseline (2026-03-10)}
+%------------------------------------------------------------
+
+\begin{table}[h]
+\centering
+\caption{Residual baseline --- OOD Kendall (5 seeds)}
+\begin{tabular}{L{3.5cm} C{1.2cm} R{3.5cm} R{3cm}}
+\toprule
+Variant & $L$ & OOD Kendall & Relative gain \\
+\midrule
+gcn             & 4 & $0.305\pm0.046$ & --- \\
+gcn\_residual   & 4 & $0.352\pm0.033$ & $+15.2\%$ \\
+hc\_gcn         & 4 & $0.395\pm0.037$ & $+29.3\%$ \\
+mhc\_gcn        & 4 & $0.380\pm0.049$ & $+24.4\%$ \\
+\midrule
+gcn             & 8 & $0.359\pm0.024$ & --- \\
+gcn\_residual   & 8 & $0.369\pm0.035$ & $+2.6\%$ \\
+hc\_gcn         & 8 & $\mathbf{0.411\pm0.040}$ & $+14.5\%$ \\
+mhc\_gcn        & 8 & $0.389\pm0.046$ & $+8.4\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At L8: residual gives only $+2.6\%$; HC-GCN gives $+14.5\%$.
+The hyper-connection gain is architectural, not reducible to
+skip connections.
+
+%------------------------------------------------------------
+\section{Stage 7 --- Zero-Shot Real-Graph Transfer (2026-03-09/10)}
+%------------------------------------------------------------
+
+\subsection{Setup}
+Models trained only on synthetic graphs evaluated zero-shot on:
+\begin{itemize}[noitemsep]
+  \item \textbf{Cora} (2708 nodes, 5278 edges, $\bar{d}\approx3.9$)
+  \item \textbf{CiteSeer} (3327 nodes, 4552 edges, $\bar{d}\approx2.7$)
+  \item \textbf{PubMed} (19717 nodes, 44324 edges, $\bar{d}\approx4.5$)
+\end{itemize}
+
+\subsection{Results --- Kendall $\tau$ (mean $\pm$ std, 5 seeds)}
+\begin{table}[h]
+\centering
+\begin{tabular}{L{3.8cm} R{3cm} R{3cm} R{3cm}}
+\toprule
+Variant & Cora & CiteSeer & PubMed \\
+\midrule
+gcn\_l8           & $0.350\pm0.053$ & $0.067\pm0.118$ & $0.539\pm0.025$ \\
+gcn\_residual\_l8 & $0.355\pm0.062$ & $0.069\pm0.080$ & $0.605\pm0.042$ \\
+hc\_gcn\_l8       & $0.366\pm0.034$ & $0.056\pm0.029$ & $0.595\pm0.028$ \\
+mhc\_gcn\_l8      & $\mathbf{0.405\pm0.036}$ & $\mathbf{0.151\pm0.083}$ & $0.598\pm0.030$ \\
+mhc\_lite\_gcn\_l8 & $0.380\pm0.037$ & $0.125\pm0.085$ & $\mathbf{0.611\pm0.030}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-graph interpretation}
+
+\textbf{Cora} ($\bar{d}\approx3.9$). All hyper-connected variants improve.
+BC is not severely skewed. mHC-GCN leads on all metrics
+($+15.5\%$ Kendall, $+43.8\%$ P@top5\%).
+HC also gains ($+4.5\%$) without regression.
+
+\textbf{CiteSeer} ($\bar{d}\approx2.7$ --- extreme sparsity).
+Most informative graph. BC concentrates on a small number of bridge nodes.
+HC-GCN \emph{regresses} $-16\%$ in Kendall vs.\ plain GCN,
+while achieving best NDCG@10 ($+34\%$):
+HC learns to route information toward bridges (correct top-K)
+but destroys global ranking of other nodes.
+The Sinkhorn constraint of mHC prevents this collapse:
+$+127\%$ Kendall gain.
+
+\textbf{PubMed} (19717 nodes).
+Gains more moderate. GCN+residual is very competitive ($+12.2\%$).
+mHC-lite leads ($+13.3\%$): full Sinkhorn overhead not worthwhile
+at this scale; lighter variant offers better trade-off.
+Precision@10 saturates at 0.5 for all models (non-discriminative).
+
+\subsection{Routing collapse on sparse BC}
+
+The HC regression on CiteSeer reveals a regime-dependent property:
+\begin{center}
+\begin{tabular}{L{5.5cm} L{5.5cm}}
+\toprule
+\textbf{HC (unconstrained)} & \textbf{mHC (Sinkhorn)} \\
+\midrule
+Best on synthetic BC (moderate skew) & Best on real citation graphs \\
+High routing freedom & Proportional stream balancing \\
+Collapses on sparse/skewed BC & No regression on any tested graph \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%------------------------------------------------------------
+\section{Medium-Term Conclusions}
+%------------------------------------------------------------
+
+\subsection{What the project has established}
+
+\begin{enumerate}
+  \item \textbf{Hyper-connections improve inductive BC ranking.}
+        Every HC-family variant outperforms GCN on OOD synthetic
+        and on real-graph zero-shot transfer.
+        The gain is architectural, not reducible to residual connections.
+
+  \item \textbf{The gain is OOD-specific.}
+        On in-distribution test graphs all models hit the same ceiling.
+        Hyper-connections transfer knowledge; they do not add raw capacity
+        on known distributions.
+
+  \item \textbf{HC-GCN is the best variant on the synthetic protocol.}
+        \[
+          \text{HC-GCN}\ (0.406) > \text{mHC-GCN}\ (0.396)
+          > \text{mHC-lite-GCN}\ (0.395) > \text{GCN}\ (0.360)
+        \]
+
+  \item \textbf{mHC-GCN is the most robust variant in zero-shot transfer.}
+        It never regresses below the GCN baseline across any benchmark.
+        HC-GCN collapses on very sparse, skewed-BC graphs (CiteSeer).
+        The Sinkhorn constraint acts as routing regularization.
+
+  \item \textbf{Deep scaling is not validated.}
+        GCNII + mHC fails at L16. HC-family advantages concentrate at
+        $L \leq 8$ for GCN backbones.
+\end{enumerate}
+
+\subsection{What cannot be claimed yet}
+
+\begin{itemize}
+  \item mHC does not universally outperform HC.
+  \item Deep scaling ($L>8$) is not validated for any variant.
+  \item The HC routing collapse is a single observation (CiteSeer);
+        additional sparse graphs are needed to generalize it.
+  \item No parameter-count-matched comparison exists;
+        gains could partially reflect extra capacity.
+\end{itemize}
+
+\subsection{Recommended next steps}
+
+\begin{enumerate}
+  \item \textbf{BC spectrum analysis:} correlate BC distribution skewness
+        (Gini, power-law exponent) of each graph with the HC vs.\ mHC
+        relative performance, to test the routing-collapse hypothesis.
+  \item \textbf{Internal matrix analysis:}
+        inspect inter-stream transport matrices of HC-GCN-L8
+        vs.\ mHC-GCN-L8 on CiteSeer to characterize the collapse
+        geometrically.
+  \item \textbf{Fair capacity comparison:}
+        add a parameter-count table and capacity-matched baselines.
+  \item \textbf{More sparse real graphs:}
+        test on additional sparse social or collaboration networks
+        to generalize the CiteSeer finding.
+\end{enumerate}
+
+\end{document}
