@@ -115,7 +115,11 @@ class HyperConnectionMappings(nn.Module):
         else:
             raise ValueError(f"Unknown variant: {variant}")
 
-    def forward(self, x_streams: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        x_streams: torch.Tensor,
+        return_details: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         x_norm = self._rms_norm(x_streams)
         pooled = x_norm.mean(dim=1)
 
@@ -158,6 +162,12 @@ class HyperConnectionMappings(nn.Module):
                 logits = logits + self.perm_static.unsqueeze(0)
             weights = torch.softmax(logits, dim=-1)
             h_res = torch.einsum("np,pij->nij", weights, self.permutation_bank.to(pooled.dtype))
+            if return_details:
+                return h_pre, h_post, h_res, {
+                    "logits": logits,
+                    "weights": weights,
+                    "permutation_bank": self.permutation_bank.to(pooled.dtype),
+                }
             return h_pre, h_post, h_res
 
         raw_res = torch.zeros(
@@ -182,6 +192,8 @@ class HyperConnectionMappings(nn.Module):
         else:
             h_res = raw_res
 
+        if return_details:
+            return h_pre, h_post, h_res, {"raw_res": raw_res}
         return h_pre, h_post, h_res
 
     def _rms_norm(self, x: torch.Tensor) -> torch.Tensor:
@@ -265,14 +277,31 @@ class HyperConnectionGNNRegressor(nn.Module):
 
         self.readout = nn.Linear(readout_dim, 1)
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        return_mappings: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, list[dict[str, torch.Tensor | int]]]:
         num_nodes = x.shape[0]
         streams = self.input_expand(x).view(num_nodes, self.n_streams, self.hidden_dim)
         gcnii_x0 = streams.mean(dim=1)
         representations: list[torch.Tensor] = []
+        mappings: list[dict[str, torch.Tensor | int]] = []
 
-        for gnn, hyper in zip(self.gnn_layers, self.hyper_layers):
-            h_pre, h_post, h_res = hyper(streams)
+        for layer_index, (gnn, hyper) in enumerate(zip(self.gnn_layers, self.hyper_layers)):
+            if return_mappings:
+                h_pre, h_post, h_res, details = hyper(streams, return_details=True)
+                layer_mapping: dict[str, torch.Tensor | int] = {
+                    "layer_index": layer_index,
+                    "h_pre": h_pre,
+                    "h_post": h_post,
+                    "h_res": h_res,
+                }
+                layer_mapping.update(details)
+                mappings.append(layer_mapping)
+            else:
+                h_pre, h_post, h_res = hyper(streams)
             aggregated = torch.bmm(h_pre, streams).squeeze(1)
             if isinstance(gnn, GCNIIMessageLayer):
                 message = gnn(aggregated, edge_index, gcnii_x0)
@@ -291,7 +320,10 @@ class HyperConnectionGNNRegressor(nn.Module):
             out = self.jk(representations)
         else:
             out = streams.mean(dim=1)
-        return self.readout(out).squeeze(-1)
+        prediction = self.readout(out).squeeze(-1)
+        if return_mappings:
+            return prediction, mappings
+        return prediction
 
 
 class GCNIIMessageLayer(nn.Module):
