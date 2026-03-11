@@ -1,0 +1,69 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/followups/edgeconv_vs_gcn_family_l8
+
+catalog: configs/multi_seed/catalog.yaml
+
+reference_training: &reference_training
+  epochs: 120
+  patience: 20
+  learning_rate: 0.00022639943735170472
+  weight_decay: 0.000021019338091154404
+  ranking_pairs_per_node: 30
+  scheduler:
+    name: reduce_on_plateau
+    monitor: val_kendall
+    mode: max
+    factor: 0.5
+    patience: 8
+    min_lr: 0.00001
+
+reference_edgeconv_model: &reference_edgeconv_model
+  dropout: 0.1
+  num_layers: 8
+
+reference_hc_model: &reference_hc_model
+  dropout: 0.1
+  num_layers: 8
+  n_streams: 2
+  use_dynamic: true
+  use_static: true
+  mapping_init_alpha: 0.01
+  sinkhorn_tau: 0.2
+  sinkhorn_iters: 20
+
+experiments:
+  - name: edgeconv_l8
+    model_id: edgeconv
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_edgeconv_model
+
+  - name: edgeconv_residual_l8
+    model_id: edgeconv_residual
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_edgeconv_model
+
+  - name: hc_edgeconv_l8
+    model_id: hc_edgeconv
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+
+  - name: mhc_edgeconv_l8
+    model_id: mhc_edgeconv
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
+
+  - name: mhc_lite_edgeconv_l8
+    model_id: mhc_lite_edgeconv
+    overrides:
+      training: *reference_training
+      model:
+        <<: *reference_hc_model
