@@ -45,6 +45,24 @@ models:
       num_layers: 4
       dropout: 0.1
 
+  edgeconv:
+    experiment:
+      name: edgeconv
+    model:
+      name: edgeconv
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+
+  edgeconv_residual:
+    experiment:
+      name: edgeconv_residual
+    model:
+      name: edgeconv_residual
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+
   sage:
     experiment:
       name: sage
@@ -111,6 +129,22 @@ models:
     model:
       name: hc_gnn
       gnn_type: gcn
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+
+  hc_edgeconv:
+    experiment:
+      name: hc_edgeconv
+    model:
+      name: hc_gnn
+      gnn_type: edgeconv
       hidden_dim: 128
       num_layers: 4
       dropout: 0.1
@@ -190,6 +224,22 @@ models:
       sinkhorn_tau: 0.1
       sinkhorn_iters: 20
 
+  mhc_edgeconv:
+    experiment:
+      name: mhc_edgeconv
+    model:
+      name: mhc_gnn
+      gnn_type: edgeconv
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      sinkhorn_tau: 0.1
+      sinkhorn_iters: 20
+
   mhc_gcnii:
     experiment:
       name: mhc_gcnii
@@ -249,6 +299,22 @@ models:
     model:
       name: mhc_lite_gnn
       gnn_type: gcn
+      hidden_dim: 128
+      num_layers: 4
+      dropout: 0.1
+      n_streams: 4
+      use_dynamic: true
+      use_static: true
+      mapping_init_alpha: 0.01
+      mhc_lite_max_permutations: null
+      mhc_lite_permutation_seed: 0
+
+  mhc_lite_edgeconv:
+    experiment:
+      name: mhc_lite_edgeconv
+    model:
+      name: mhc_lite_gnn
+      gnn_type: edgeconv
       hidden_dim: 128
       num_layers: 4
       dropout: 0.1

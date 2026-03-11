@@ -6,7 +6,7 @@ import math
 import torch
 from torch import nn
 from torch_geometric.nn import APPNP as APPNPConv
-from torch_geometric.nn import GATConv, GCN2Conv, GCNConv, GINConv, JumpingKnowledge, SAGEConv
+from torch_geometric.nn import EdgeConv, GATConv, GCN2Conv, GCNConv, GINConv, JumpingKnowledge, SAGEConv
 
 
 def sinkhorn_knopp(
@@ -357,6 +357,14 @@ class APPNPMessageLayer(nn.Module):
         return self.prop(hidden, edge_index)
 
 
+def make_edgeconv_mlp(in_dim: int, out_dim: int) -> nn.Sequential:
+    return nn.Sequential(
+        nn.Linear(in_dim * 2, out_dim),
+        nn.ReLU(),
+        nn.Linear(out_dim, out_dim),
+    )
+
+
 def build_conv_layer(
     gnn_type: str,
     in_dim: int,
@@ -374,6 +382,8 @@ def build_conv_layer(
         return SAGEConv(in_dim, out_dim)
     if key == "gat":
         return GATConv(in_dim, out_dim, heads=1, concat=False)
+    if key == "edgeconv":
+        return EdgeConv(make_edgeconv_mlp(in_dim, out_dim))
     if key == "gin":
         mlp = nn.Sequential(
             nn.Linear(in_dim, out_dim),
