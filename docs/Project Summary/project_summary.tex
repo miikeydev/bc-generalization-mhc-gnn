@@ -123,7 +123,7 @@ GCN + mHC is the strongest candidate.
 \textbf{GCNII:} mHC helps at L2/L8 but degrades at L16
 (deltas: $-0.039$, $-0.012$, $-0.047$).
 
-\textit{Decision: GCN family only from this point.}
+\textit{Decision: the GCN family becomes the primary line of analysis from this point; other backbones remain secondary reference points.}
 
 %------------------------------------------------------------
 \section{Stage 4 --- GCN Ablation Study (2026-03-07)}
@@ -153,9 +153,11 @@ Sinkhorn  & iters $=10$       & 0.8886 & 0.3906 \\
 
 \subsection{Interpretation}
 HC-GCN dominates. No mHC variant exceeds HC regardless of $\tau$ tuning.
-$n=2$ streams is optimal. Dynamic and static components contribute equally.
-The useful mechanism is flexible multi-stream routing, \emph{not} the
-doubly-stochastic Sinkhorn constraint.
+$n=2$ streams is the best setting in this study. Dynamic-only and
+static-only variants both remain functional, while the hybrid setting
+is the most stable default. The useful mechanism appears to be flexible
+multi-stream routing, more than the doubly-stochastic Sinkhorn
+constraint itself.
 
 %------------------------------------------------------------
 \section{Stage 5 --- Final GCN Family Comparison (2026-03-09)}
@@ -270,7 +272,7 @@ HC learns to route information toward bridges (correct top-K)
 but destroys global ranking of other nodes.
 The Sinkhorn constraint of mHC prevents this collapse:
 $+127\%$ Kendall gain.
-The routing matrix analysis (Section~\ref{sec:matrices}) provides
+The routing matrix analysis (Section~\ref{sec:matrix-analysis}) provides
 a mechanistic account of this divergence.
 
 \textbf{PubMed} (19717 nodes).
@@ -293,176 +295,6 @@ Collapses on sparse/skewed BC & No regression on any tested graph \\
 \bottomrule
 \end{tabular}
 \end{center}
-
-%------------------------------------------------------------
-\section{Stage 8 --- Routing Matrix Analysis (2026-03-11)}
-\label{sec:matrices}
-%------------------------------------------------------------
-
-\subsection{Setup}
-
-Post-hoc analysis of the inter-stream residual matrices $H_\text{res}$
-on three models across three regimes (synthetic ID, synthetic OOD,
-Cora), 5 seeds.
-
-\begin{table}[h]
-\centering
-\begin{tabular}{L{4cm} L{7cm}}
-\toprule
-Models & \texttt{hc\_gcn\_l8}, \texttt{mhc\_gcn\_l8},
-         \texttt{mhc\_lite\_gcn\_l8} \\
-Regimes & synthetic ID, synthetic OOD, Cora \\
-Seeds & 5 \\
-Layers & all 8 \\
-Statistics & identity distance, row entropy,
-             row/col sum error, permutation proximity \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{HC-GCN: progressive, unconstrained routing freedom}
-
-$H_\text{res}$ drifts progressively away from the identity
-as depth increases (measured on synthetic OOD):
-
-\begin{table}[h]
-\centering
-\begin{tabular}{C{2.5cm} R{3.5cm} R{3.5cm}}
-\toprule
-Layer & Identity distance & Row entropy \\
-\midrule
-0 & $\approx 0.064$ & $\approx 0.18$ \\
-3 & $\approx 0.182$ & --- \\
-7 & $\approx 0.951$ & $\approx 0.75$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Row and column sum errors become large in deeper layers,
-confirming that $H_\text{res}$ is not doubly stochastic:
-the model is free to route probability mass unevenly across streams.
-This aggressive, unconstrained remixing is consistent with
-HC-GCN's superiority on the synthetic inductive benchmark,
-and explains the routing collapse on CiteSeer
-(Section~\ref{sec:citeseer-collapse}):
-deep layers over-commit to bridge-node streams, distorting global rankings.
-
-\subsection{mHC-GCN: strongly mixed but Sinkhorn-balanced}
-
-The raw residual matrix is already far from the identity
-before Sinkhorn projection (layer~7:
-raw identity distance $\approx 0.816$):
-the model \emph{wants} to mix streams aggressively.
-After Sinkhorn projection:
-
-\begin{itemize}[noitemsep]
-  \item identity distance at layer 7 $\approx 0.403$ (synthetic OOD)
-  \item row and column sum errors $\approx 0$
-        (doubly-stochastic constraint enforced)
-  \item the pattern is stable across synthetic ID, synthetic OOD,
-        and Cora
-\end{itemize}
-
-The projection forces the mixing into a balanced transport plan,
-preserving more global structure than HC.
-This is consistent with mHC's stronger zero-shot transfer
-and the absence of regression across all tested real graphs.
-
-\subsection{mHC-lite-GCN: near-uniform, depth-invariant mixer}
-
-With $n_\text{str}=2$, the routing behaves like a near-uniform
-convex combination of identity and swap, almost constant across
-layers and regimes:
-
-\begin{itemize}[noitemsep]
-  \item identity distance $\approx 0.707$ (constant across layers)
-  \item row entropy $\approx 1.0$ (maximum)
-  \item max permutation coefficient $\approx 0.50$
-  \item permutation entropy $\approx 1.0$
-\end{itemize}
-
-The mechanism is only weakly input-adaptive, which is consistent
-with its stable but moderate performance on large real graphs
-such as PubMed.
-
-\subsection{Mechanistic summary}
-\label{sec:citeseer-collapse}
-
-\begin{table}[h]
-\centering
-\caption{Routing characterisation from learned $H_\text{res}$ matrices}
-\begin{tabular}{L{2.8cm} L{3.8cm} L{4.8cm}}
-\toprule
-Variant & Routing character & Consequence \\
-\midrule
-HC       & Free; grows more aggressive at depth
-         & Strongest synthetic BC; collapses on sparse/skewed graphs \\
-mHC      & Strongly mixed, Sinkhorn-balanced
-         & Best zero-shot transfer; no regression on any graph \\
-mHC-lite & Near-uniform, depth-invariant
-         & Stable and competitive on large graphs (PubMed) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The synthetic vs.\ real ranking inversion is not a metric artefact:
-it has a clear mechanistic signature in the routing matrices.
-HC and mHC learn structurally different transport plans,
-and those differences map directly onto their respective
-failure modes.
-
-%------------------------------------------------------------
-\section{Medium-Term Conclusions}
-%------------------------------------------------------------
-
-\subsection{What the project has established}
-
-\begin{enumerate}
-  \item \textbf{Hyper-connections improve inductive BC ranking.}
-        Every HC-family variant outperforms GCN on OOD synthetic
-        and on real-graph zero-shot transfer.
-        The gain is architectural, not reducible to residual connections.
-
-  \item \textbf{The gain is OOD-specific.}
-        On in-distribution test graphs all models hit the same ceiling.
-        Hyper-connections transfer knowledge; they do not add raw capacity
-        on known distributions.
-
-  \item \textbf{HC-GCN is the best variant on the synthetic protocol.}
-        \[
-          \text{HC-GCN}\ (0.406) > \text{mHC-GCN}\ (0.396)
-          > \text{mHC-lite-GCN}\ (0.395) > \text{GCN}\ (0.360)
-        \]
-
-  \item \textbf{mHC-GCN is the most robust variant in zero-shot transfer.}
-        It never regresses below the GCN baseline across any benchmark.
-        HC-GCN collapses on very sparse, skewed-BC graphs (CiteSeer).
-        The Sinkhorn constraint acts as routing regularization.
-
-  \item \textbf{Deep scaling is not validated.}
-        GCNII + mHC fails at L16. HC-family advantages concentrate at
-        $L \leq 8$ for GCN backbones.
-
-  \item \textbf{The performance split has a mechanistic explanation.}
-        Matrix analysis of $H_\text{res}$ shows that HC learns
-        increasingly free, non-doubly-stochastic routing (identity
-        distance $0.064 \to 0.951$ across layers), mHC is equally
-        aggressive before projection but Sinkhorn-balanced after,
-        and mHC-lite is an almost depth-invariant near-uniform mixer.
-        The synthetic vs.\ real graph ranking inversion is directly
-        visible in the routing statistics.
-\end{enumerate}
-
-\subsection{What cannot be claimed yet}
-
-\begin{itemize}
-  \item mHC does not universally outperform HC.
-  \item Deep scaling ($L>8$) is not validated for any variant.
-  \item The HC routing collapse is a single observation (CiteSeer);
-        additional sparse graphs are needed to generalize it.
-  \item No parameter-count-matched comparison exists;
-        gains could partially reflect extra capacity.
-\end{itemize}
 
 %------------------------------------------------------------
 \section{Stage 8 --- Routing Matrix Analysis (2026-03-11)}
@@ -598,7 +430,7 @@ the task benefits from aggressive multi-stream recombination of weak structural 
 mHC does \emph{not} learn weak mixing.
 Instead, it learns strong mixing that is projected into a balanced transport plan.
 The Sinkhorn constraint preserves more structure than HC and prevents unbalanced routing collapse.
-This matches mHC's better real-graph transfer behavior.
+This is consistent with mHC's stronger behavior on some real-graph transfer settings.
 
 %------------------------------------------------------------
 \subsection{mHC-lite-GCN: near-uniform default mixer}
@@ -764,5 +596,59 @@ The marginal utility of HC/mHC/mHC-lite becomes much smaller once the backbone i
 EdgeConv + residual is stronger than the final GCN family on global OOD ranking,
 but the comparison is not like-for-like in terms of model class and capacity.
 HC-GCN remains competitive if the target metric is top-K retrieval rather than global ranking.
+
+%------------------------------------------------------------
+\section{Consolidated Conclusions}
+%------------------------------------------------------------
+
+\begin{enumerate}
+  \item \textbf{Hyper-connections improve inductive betweenness ranking on simple backbones.}
+        On the synthetic multi-graph benchmark, the GCN family improves from
+        plain GCN to HC/mHC/mHC-lite, and the gain is not reducible to a
+        standard residual connection.
+
+  \item \textbf{HC-GCN is the strongest variant on the main synthetic protocol.}
+        At $L=8$, it achieves the best OOD Kendall within the GCN family:
+        \[
+          \text{HC-GCN}\ (0.406) > \text{mHC-GCN}\ (0.396)
+          \approx \text{mHC-lite-GCN}\ (0.395) > \text{GCN}\ (0.360)
+        \]
+        The useful regime is moderate depth ($L4$--$L8$), not very deep scaling.
+
+  \item \textbf{The internal routing mechanisms are genuinely different.}
+        Matrix analysis shows that HC learns increasingly free and aggressive
+        routing, mHC learns strong but Sinkhorn-balanced transport, and
+        mHC-lite behaves like a highly regularized near-uniform mixer.
+        These patterns are consistent with the observed performance differences.
+
+  \item \textbf{The ranking between HC, mHC, and mHC-lite is distribution-dependent.}
+        On the synthetic benchmark, HC is best. On real citation graphs,
+        mHC is strongest on Cora and CiteSeer, while mHC-lite is strongest on
+        PubMed. The family transfers well, but no single variant dominates
+        every regime.
+
+  \item \textbf{Backbone choice remains decisive.}
+        EdgeConv with a standard residual path outperforms the final GCN family
+        on global OOD ranking, while bringing only marginal additional gains
+        from HC/mHC/mHC-lite. This suggests that hyper-connections are most
+        useful as boosters for simpler backbones, not as universal replacements
+        for stronger architectures.
+\end{enumerate}
+
+%------------------------------------------------------------
+\section{Limits}
+%------------------------------------------------------------
+
+\begin{itemize}
+  \item Very deep scaling ($L > 8$) is not validated on this task.
+  \item Real-graph transfer is evaluated on a small number of citation graphs
+        and should be read as external validation rather than as the main
+        protocol.
+  \item The routing analysis supports mechanistic interpretations, but remains
+        an experimental interpretation rather than a formal proof.
+  \item Capacity differs substantially across backbone families
+        (e.g.\ GCN vs.\ EdgeConv / GCNII / APPNP), so cross-family comparisons
+        must be interpreted with care.
+\end{itemize}
 
 \end{document}
