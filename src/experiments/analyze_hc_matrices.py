@@ -37,9 +37,9 @@ def _resolve_device(device_config: str) -> torch.device:
 
 def _load_seed_model(seed_dir: Path) -> tuple[dict[str, Any], torch.nn.Module, torch.device]:
     resolved_config = load_config(seed_dir / "resolved_config.json")
-    input_dim = int(resolved_config["data"]["lap_pe_dim"]) + 2 if resolved_config["data"]["feature_mode"] == "structural_only" else None
-    if input_dim is None:
-        raise ValueError("HC matrix analysis currently supports structural_only checkpoints only")
+    
+    input_dim = _infer_input_dim_from_config(resolved_config)
+    
     model = build_model(config=resolved_config, input_dim=input_dim)
     state_dict = torch.load(seed_dir / "best_model.pt", map_location="cpu", weights_only=True)
     model.load_state_dict(state_dict)
@@ -47,6 +47,34 @@ def _load_seed_model(seed_dir: Path) -> tuple[dict[str, Any], torch.nn.Module, t
     model = model.to(device)
     model.eval()
     return resolved_config, model, device
+
+
+def _infer_input_dim_from_config(config: dict) -> int:
+    data_cfg = config.get("data", {})
+    feature_mode = str(data_cfg.get("feature_mode", "structural_only"))
+    
+    if feature_mode in {"degree_only", "degree"}:
+        return 2
+    
+    if feature_mode in {"degree_plus_rwpe", "degree_rwpe"}:
+        rwpe_dim = data_cfg.get("feature_config", {}).get("rwpe_dim", 8)
+        return 2 + rwpe_dim
+    
+    if feature_mode in {"degree_plus_ppr", "degree_ppr"}:
+        ppr_dim = data_cfg.get("feature_config", {}).get("ppr_dim", 8)
+        return 2 + ppr_dim
+    
+    if feature_mode == "structural_only":
+        lap_pe_dim = int(data_cfg.get("lap_pe_dim", 8))
+        return 2 + lap_pe_dim
+    
+    if feature_mode in {"random", "gaussian"}:
+        return int(data_cfg.get("random_feature_dim", 16))
+    
+    if feature_mode in {"none", "constant", "ones"}:
+        return 1
+    
+    raise ValueError(f"Cannot infer input_dim for feature_mode={feature_mode}")
 
 
 def _select_synthetic_graphs(bundle: Any, max_id_graphs: int, max_ood_graphs: int) -> list[tuple[str, int, Any, str]]:
@@ -126,22 +154,27 @@ def main() -> None:
             for dataset_cfg in real_datasets:
                 dataset_name = str(dataset_cfg["name"])
                 dataset_root = str(dataset_cfg.get("root", "data/real_graphs"))
+                data_cfg = resolved_config.get("data", {})
                 real_key = (
                     dataset_name.lower(),
                     dataset_root,
-                    str(resolved_config["data"]["feature_mode"]),
-                    int(resolved_config["data"]["lap_pe_dim"]),
-                    int(resolved_config["data"]["random_feature_dim"]),
+                    str(data_cfg.get("feature_mode", "structural_only")),
+                    int(data_cfg.get("lap_pe_dim", 8)),
+                    int(data_cfg.get("random_feature_dim", 16)),
+                    str(data_cfg.get("bc_backend", "networkx")),
                     seed,
                 )
                 if real_key not in real_cache:
                     real_cache[real_key] = build_real_graph_data(
                         dataset_name=dataset_name,
-                        feature_mode=str(resolved_config["data"]["feature_mode"]),
-                        lap_pe_dim=int(resolved_config["data"]["lap_pe_dim"]),
-                        random_feature_dim=int(resolved_config["data"]["random_feature_dim"]),
+                        feature_mode=str(data_cfg.get("feature_mode", "structural_only")),
+                        lap_pe_dim=int(data_cfg.get("lap_pe_dim", 8)),
+                        random_feature_dim=int(data_cfg.get("random_feature_dim", 16)),
                         rng_seed=seed,
                         root=dataset_root,
+                        feature_config=data_cfg.get("feature_config", {}),
+                        bc_backend=data_cfg.get("bc_backend", "networkx"),
+                        bc_mode=data_cfg.get("bc_mode", "exact"),
                     )
                 graph_data = real_cache[real_key].clone()
                 layer_summaries = _evaluate_graph(model=model, device=device, graph_data=graph_data)
