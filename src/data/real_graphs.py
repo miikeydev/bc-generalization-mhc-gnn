@@ -7,13 +7,9 @@ from torch_geometric.data import Data
 from torch_geometric.datasets import Planetoid
 from torch_geometric.utils import to_networkx
 
+from .betweenness import compute_betweenness_centrality
 from .features import build_node_features
-
-try:
-    import networkit as nk
-    NETWORKIT_AVAILABLE = True
-except ImportError:
-    NETWORKIT_AVAILABLE = False
+from .protocol import compute_size_bucket, normalize_data_config
 
 
 def build_real_graph_data(
@@ -26,26 +22,43 @@ def build_real_graph_data(
     feature_config: dict | None = None,
     bc_backend: str = "networkx",
     bc_mode: str = "exact",
+    bc_approximation_k: int | None = None,
 ) -> Data:
+    data_cfg = normalize_data_config(
+        {
+            "feature_mode": feature_mode,
+            "lap_pe_dim": lap_pe_dim,
+            "random_feature_dim": random_feature_dim,
+            "feature_config": feature_config or {},
+            "bc_backend": bc_backend,
+            "bc_mode": bc_mode,
+            "bc_approximation_k": bc_approximation_k,
+        }
+    )
     graph, original_x = _load_planetoid_graph(dataset_name=dataset_name, root=root)
     rng = np.random.default_rng(rng_seed)
-    feature_cfg = feature_config or {}
-    
+
     x = build_node_features(
         graph=graph,
-        mode=feature_mode,
-        lap_pe_dim=lap_pe_dim,
-        random_feature_dim=random_feature_dim,
+        mode=data_cfg["feature_mode"],
+        lap_pe_dim=data_cfg["lap_pe_dim"],
+        random_feature_dim=data_cfg["random_feature_dim"],
         rng=rng,
-        feature_config=feature_cfg,
+        feature_config=data_cfg["feature_config"],
     )
-    y_raw = _compute_exact_bc(graph, bc_backend=bc_backend, bc_mode=bc_mode)
+    y_raw = compute_betweenness_centrality(
+        graph=graph,
+        bc_backend=data_cfg["bc_backend"],
+        bc_mode=data_cfg["bc_mode"],
+        bc_approximation_k=data_cfg["bc_approximation_k"],
+        seed=rng_seed,
+    )
 
     num_nodes_actual = graph.number_of_nodes()
     num_edges_actual = graph.number_of_edges()
     avg_degree_actual = 2.0 * num_edges_actual / max(1, num_nodes_actual)
     density_actual = 2.0 * num_edges_actual / max(1, num_nodes_actual * (num_nodes_actual - 1))
-    
+
     clustering = nx.average_clustering(graph)
     assortativity = nx.degree_assortativity_coefficient(graph) if num_nodes_actual > 1 else 0.0
 
@@ -58,6 +71,7 @@ def build_real_graph_data(
     data.num_edges_undirected = int(num_edges_actual)
     data.avg_degree = float(avg_degree_actual)
     data.density = float(density_actual)
+    data.size_bucket = compute_size_bucket(num_nodes_actual)
     data.clustering = float(clustering)
     data.assortativity = float(assortativity)
     data.dataset_name = dataset_name.lower()
@@ -71,24 +85,6 @@ def _load_planetoid_graph(dataset_name: str, root: str) -> tuple[nx.Graph, torch
     graph = to_networkx(data, to_undirected=True, remove_self_loops=True)
     graph = nx.convert_node_labels_to_integers(graph, ordering="sorted")
     return graph, data.x.detach().cpu()
-
-
-def _compute_exact_bc(graph: nx.Graph, bc_backend: str = "networkx", bc_mode: str = "exact") -> np.ndarray:
-    backend = str(bc_backend).lower()
-    
-    if backend == "auto":
-        backend = "networkit" if NETWORKIT_AVAILABLE and graph.number_of_nodes() > 10000 else "networkx"
-    
-    if backend == "networkit" and NETWORKIT_AVAILABLE:
-        try:
-            G = nk.nxadapter.nx2nk(graph)
-            bc = nk.centrality.Betweenness(G, normalized=True).run().scores()
-            return np.array(bc, dtype=np.float32)
-        except Exception:
-            pass
-    
-    bc = nx.betweenness_centrality(graph, normalized=True)
-    return np.array([bc[node] for node in graph.nodes()], dtype=np.float32)
 
 
 def _edge_index_from_graph(graph: nx.Graph) -> torch.Tensor:

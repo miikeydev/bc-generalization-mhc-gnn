@@ -54,8 +54,8 @@ uv run python -m src.experiments.run_multi_seed --sweep-config configs/isolated/
 Configured via `data.feature_mode`:
 - `structural_only` (default, legacy): degree + log_degree + LapPE. LapPE dimension set by `data.lap_pe_dim`.
 - `degree_only`: degree + log_degree (2 dimensions, EXTRA: not from paper).
-- `degree_plus_rwpe`: degree + log_degree + Random Walk PE (EXTRA: not from paper). RWPE dimension and steps configured via `data.feature_config`.
-- `degree_plus_ppr`: degree + log_degree + Personalized PageRank PE (EXTRA: not from paper). PPR dimension configured via `data.feature_config`.
+- `degree_plus_rwpe`: degree + log_degree + scalable random-walk diffusion features (EXTRA: not from paper). Output dimension and steps configured via `data.feature_config`.
+- `degree_plus_ppr`: degree + log_degree + scalable approximate PPR diffusion features (EXTRA: not from paper). Output dimension, alpha, and diffusion steps configured via `data.feature_config`.
 - `random`: random Gaussian features. Dimension set by `data.random_feature_dim`.
 - `none`: constant features (all ones).
 
@@ -81,6 +81,8 @@ For `degree_plus_ppr`:
 data:
   feature_config:
     ppr_dim: 8
+    ppr_alpha: 0.15
+    ppr_steps: 8
 ```
 
 ### Graph Metadata
@@ -97,4 +99,3 @@ For real graphs, additional metadata:
 ### Backward Compatibility
 Old configs using `structural_only`, `lap_pe_dim`, and related keys continue to work unchanged.
 The config normalizer auto-maps them to the v2 protocol.
-

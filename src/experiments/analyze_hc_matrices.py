@@ -9,6 +9,7 @@ import torch
 
 from src.analysis import aggregate_regime_summaries, aggregate_seed_rows, summarize_layer_mapping, write_csv
 from src.data import build_inductive_datasets, build_real_graph_data
+from src.data.protocol import infer_input_dim_from_data_config, make_data_cache_signature
 from src.models import build_model
 from src.utils import ensure_dir, load_config, set_global_seed, write_json
 
@@ -37,9 +38,7 @@ def _resolve_device(device_config: str) -> torch.device:
 
 def _load_seed_model(seed_dir: Path) -> tuple[dict[str, Any], torch.nn.Module, torch.device]:
     resolved_config = load_config(seed_dir / "resolved_config.json")
-    
-    input_dim = _infer_input_dim_from_config(resolved_config)
-    
+    input_dim = infer_input_dim_from_data_config(resolved_config.get("data", {}))
     model = build_model(config=resolved_config, input_dim=input_dim)
     state_dict = torch.load(seed_dir / "best_model.pt", map_location="cpu", weights_only=True)
     model.load_state_dict(state_dict)
@@ -47,34 +46,6 @@ def _load_seed_model(seed_dir: Path) -> tuple[dict[str, Any], torch.nn.Module, t
     model = model.to(device)
     model.eval()
     return resolved_config, model, device
-
-
-def _infer_input_dim_from_config(config: dict) -> int:
-    data_cfg = config.get("data", {})
-    feature_mode = str(data_cfg.get("feature_mode", "structural_only"))
-    
-    if feature_mode in {"degree_only", "degree"}:
-        return 2
-    
-    if feature_mode in {"degree_plus_rwpe", "degree_rwpe"}:
-        rwpe_dim = data_cfg.get("feature_config", {}).get("rwpe_dim", 8)
-        return 2 + rwpe_dim
-    
-    if feature_mode in {"degree_plus_ppr", "degree_ppr"}:
-        ppr_dim = data_cfg.get("feature_config", {}).get("ppr_dim", 8)
-        return 2 + ppr_dim
-    
-    if feature_mode == "structural_only":
-        lap_pe_dim = int(data_cfg.get("lap_pe_dim", 8))
-        return 2 + lap_pe_dim
-    
-    if feature_mode in {"random", "gaussian"}:
-        return int(data_cfg.get("random_feature_dim", 16))
-    
-    if feature_mode in {"none", "constant", "ones"}:
-        return 1
-    
-    raise ValueError(f"Cannot infer input_dim for feature_mode={feature_mode}")
 
 
 def _select_synthetic_graphs(bundle: Any, max_id_graphs: int, max_ood_graphs: int) -> list[tuple[str, int, Any, str]]:
@@ -158,11 +129,8 @@ def main() -> None:
                 real_key = (
                     dataset_name.lower(),
                     dataset_root,
-                    str(data_cfg.get("feature_mode", "structural_only")),
-                    int(data_cfg.get("lap_pe_dim", 8)),
-                    int(data_cfg.get("random_feature_dim", 16)),
-                    str(data_cfg.get("bc_backend", "networkx")),
                     seed,
+                    *make_data_cache_signature(data_cfg),
                 )
                 if real_key not in real_cache:
                     real_cache[real_key] = build_real_graph_data(
@@ -175,6 +143,7 @@ def main() -> None:
                         feature_config=data_cfg.get("feature_config", {}),
                         bc_backend=data_cfg.get("bc_backend", "networkx"),
                         bc_mode=data_cfg.get("bc_mode", "exact"),
+                        bc_approximation_k=data_cfg.get("bc_approximation_k"),
                     )
                 graph_data = real_cache[real_key].clone()
                 layer_summaries = _evaluate_graph(model=model, device=device, graph_data=graph_data)

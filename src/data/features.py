@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import networkx as nx
 import numpy as np
+from scipy import sparse
 from scipy.sparse.linalg import eigsh
+
+from .protocol import normalize_feature_mode
 
 
 def build_node_features(
@@ -14,20 +17,22 @@ def build_node_features(
     feature_config: dict | None = None,
 ) -> np.ndarray:
     feature_cfg = feature_config or {}
-    normalized_mode = _normalize_feature_mode(mode)
-    
+    normalized_mode = normalize_feature_mode(mode)
+
     if normalized_mode == "degree_only":
         return _build_degree_only(graph)
-    
+
     if normalized_mode == "degree_plus_rwpe":
-        rwpe_dim = feature_cfg.get("rwpe_dim", 8)
-        rwpe_steps = feature_cfg.get("rwpe_steps", 5)
+        rwpe_dim = int(feature_cfg.get("rwpe_dim", 8))
+        rwpe_steps = int(feature_cfg.get("rwpe_steps", 5))
         return _build_degree_plus_rwpe(graph, rwpe_dim, rwpe_steps)
-    
+
     if normalized_mode == "degree_plus_ppr":
-        ppr_dim = feature_cfg.get("ppr_dim", 8)
-        return _build_degree_plus_ppr(graph, ppr_dim)
-    
+        ppr_dim = int(feature_cfg.get("ppr_dim", 8))
+        ppr_alpha = float(feature_cfg.get("ppr_alpha", 0.15))
+        ppr_steps = int(feature_cfg.get("ppr_steps", 8))
+        return _build_degree_plus_ppr(graph, ppr_dim, ppr_alpha, ppr_steps)
+
     if normalized_mode == "structural_only":
         degree = np.array([graph.degree(node) for node in graph.nodes()], dtype=np.float32).reshape(-1, 1)
         log_degree = np.log1p(degree)
@@ -47,23 +52,6 @@ def build_node_features(
     raise ValueError(f"Unsupported feature mode: {normalized_mode}")
 
 
-def _normalize_feature_mode(mode: str) -> str:
-    mode_lower = str(mode).lower().strip()
-    if mode_lower == "structural_only":
-        return "structural_only"
-    if mode_lower in {"degree_only", "degree"}:
-        return "degree_only"
-    if mode_lower in {"degree_plus_rwpe", "degree_rwpe"}:
-        return "degree_plus_rwpe"
-    if mode_lower in {"degree_plus_ppr", "degree_ppr"}:
-        return "degree_plus_ppr"
-    if mode_lower in {"random", "gaussian"}:
-        return "random"
-    if mode_lower in {"none", "constant", "ones"}:
-        return "none"
-    return mode_lower
-
-
 def _build_degree_only(graph: nx.Graph) -> np.ndarray:
     degree = np.array([graph.degree(node) for node in graph.nodes()], dtype=np.float32).reshape(-1, 1)
     log_degree = np.log1p(degree)
@@ -76,73 +64,67 @@ def _build_degree_plus_rwpe(graph: nx.Graph, rwpe_dim: int, rwpe_steps: int) -> 
     return np.concatenate([degree, rwpe], axis=1).astype(np.float32)
 
 
-def _build_degree_plus_ppr(graph: nx.Graph, ppr_dim: int) -> np.ndarray:
+def _build_degree_plus_ppr(graph: nx.Graph, ppr_dim: int, ppr_alpha: float, ppr_steps: int) -> np.ndarray:
     degree = _build_degree_only(graph)
-    ppr = _compute_personalized_pagerank_pe(graph, ppr_dim)
+    ppr = _compute_personalized_pagerank_pe(graph, ppr_dim, ppr_alpha, ppr_steps)
     return np.concatenate([degree, ppr], axis=1).astype(np.float32)
 
 
 def _compute_random_walk_pe(graph: nx.Graph, rwpe_dim: int, steps: int) -> np.ndarray:
     num_nodes = graph.number_of_nodes()
-    if num_nodes == 0:
+    if num_nodes == 0 or rwpe_dim <= 0:
         return np.zeros((0, rwpe_dim), dtype=np.float32)
-    
-    A = nx.adjacency_matrix(graph).astype(np.float32).T
-    d = np.array(A.sum(axis=0)).flatten()
-    d_inv = np.where(d > 0, 1.0 / d, 0.0)
-    P = A.multiply(d_inv.reshape(-1, 1))
-    
-    pe_list = []
-    for node_idx in range(num_nodes):
-        walk_vec = np.zeros(steps + 1, dtype=np.float32)
-        walk_vec[0] = 1.0
-        current = np.zeros(num_nodes, dtype=np.float32)
-        current[node_idx] = 1.0
-        for step in range(1, steps + 1):
-            current = P.T.dot(current)
-            walk_vec[step] = current[node_idx]
-        pe_list.append(walk_vec)
-    
-    pe = np.array(pe_list, dtype=np.float32)
-    if pe.shape[1] > rwpe_dim:
-        pe = pe[:, :rwpe_dim]
-    elif pe.shape[1] < rwpe_dim:
-        pad = np.zeros((num_nodes, rwpe_dim - pe.shape[1]), dtype=np.float32)
-        pe = np.concatenate([pe, pad], axis=1)
-    return pe
+
+    transition = _build_transition_matrix(graph)
+    anchors = _build_anchor_matrix(graph, rwpe_dim)
+    features = anchors
+    num_steps = max(1, steps)
+    for _ in range(num_steps):
+        features = transition.T @ features
+    return np.asarray(features, dtype=np.float32)
 
 
-def _compute_personalized_pagerank_pe(graph: nx.Graph, ppr_dim: int) -> np.ndarray:
+def _compute_personalized_pagerank_pe(
+    graph: nx.Graph,
+    ppr_dim: int,
+    alpha: float,
+    steps: int,
+) -> np.ndarray:
     num_nodes = graph.number_of_nodes()
-    if num_nodes == 0:
+    if num_nodes == 0 or ppr_dim <= 0:
         return np.zeros((0, ppr_dim), dtype=np.float32)
-    
-    ppr_alpha = 0.15
-    ppr_max_iter = 100
-    pe_list = []
-    
-    for node_idx in range(num_nodes):
-        personalization = {i: (1.0 if i == node_idx else 0.0) for i in range(num_nodes)}
-        try:
-            ppr_scores = nx.pagerank(
-                graph,
-                alpha=ppr_alpha,
-                personalization=personalization,
-                max_iter=ppr_max_iter,
-                tol=1e-6,
-            )
-            ppr_vec = np.array([ppr_scores.get(i, 0.0) for i in range(num_nodes)], dtype=np.float32)
-        except Exception:
-            ppr_vec = np.ones(num_nodes, dtype=np.float32) / num_nodes
-        pe_list.append(ppr_vec)
-    
-    pe = np.array(pe_list, dtype=np.float32)
-    if pe.shape[1] > ppr_dim:
-        pe = pe[:, :ppr_dim]
-    elif pe.shape[1] < ppr_dim:
-        pad = np.zeros((num_nodes, ppr_dim - pe.shape[1]), dtype=np.float32)
-        pe = np.concatenate([pe, pad], axis=1)
-    return pe
+
+    transition = _build_transition_matrix(graph)
+    anchors = _build_anchor_matrix(graph, ppr_dim)
+    features = anchors.copy()
+    restart = anchors.copy()
+    alpha_clamped = min(max(alpha, 1e-4), 0.9999)
+
+    for _ in range(max(1, steps)):
+        features = alpha_clamped * restart + (1.0 - alpha_clamped) * (transition.T @ features)
+
+    return np.asarray(features, dtype=np.float32)
+
+
+def _build_transition_matrix(graph: nx.Graph) -> sparse.csr_matrix:
+    adjacency = nx.to_scipy_sparse_array(graph, format="csr", dtype=np.float32)
+    degree = np.asarray(adjacency.sum(axis=1)).reshape(-1)
+    inv_degree = np.divide(1.0, degree, out=np.zeros_like(degree), where=degree > 0)
+    return sparse.diags(inv_degree, format="csr") @ adjacency
+
+
+def _build_anchor_matrix(graph: nx.Graph, num_anchors: int) -> np.ndarray:
+    num_nodes = graph.number_of_nodes()
+    anchors = np.zeros((num_nodes, num_anchors), dtype=np.float32)
+    if num_nodes == 0 or num_anchors <= 0:
+        return anchors
+
+    degrees = np.array([graph.degree(node) for node in graph.nodes()], dtype=np.float32)
+    ordered_nodes = np.argsort(-degrees, kind="stable")
+    selected = ordered_nodes[: min(num_nodes, num_anchors)]
+    for column, node_idx in enumerate(selected):
+        anchors[int(node_idx), column] = 1.0
+    return anchors
 
 
 def compute_laplacian_positional_encoding(graph: nx.Graph, lap_pe_dim: int) -> np.ndarray:
