@@ -7,6 +7,7 @@ from pathlib import Path
 import torch
 
 from src.data.real_graphs import build_real_graph_data
+from src.data.protocol import infer_input_dim_from_data_config, make_data_cache_signature
 from src.eval import compute_graph_metrics
 from src.experiments.aggregate_seeds import aggregate_model_dir
 from src.models import build_model
@@ -37,9 +38,7 @@ def _resolve_device(device_config: str) -> torch.device:
 
 def _load_seed_model(seed_dir: Path) -> tuple[dict, torch.nn.Module, torch.device]:
     resolved_config = load_config(seed_dir / "resolved_config.json")
-    input_dim = int(resolved_config["data"]["lap_pe_dim"]) + 2 if resolved_config["data"]["feature_mode"] == "structural_only" else None
-    if input_dim is None:
-        raise ValueError("Real-graph transfer currently supports structural_only checkpoints only")
+    input_dim = infer_input_dim_from_data_config(resolved_config.get("data", {}))
     model = build_model(config=resolved_config, input_dim=input_dim)
     state_dict = torch.load(seed_dir / "best_model.pt", map_location="cpu", weights_only=True)
     model.load_state_dict(state_dict)
@@ -60,22 +59,23 @@ def _evaluate_seed(
 ) -> dict:
     resolved_config, model, device = _load_seed_model(seed_dir)
     set_global_seed(seed)
+    data_cfg = resolved_config.get("data", {})
     cache_key = (
         dataset_name.lower(),
         dataset_root,
-        str(resolved_config["data"]["feature_mode"]),
-        int(resolved_config["data"]["lap_pe_dim"]),
-        int(resolved_config["data"]["random_feature_dim"]),
         seed,
+        *make_data_cache_signature(data_cfg),
     )
     if cache_key not in data_cache:
         data_cache[cache_key] = build_real_graph_data(
             dataset_name=dataset_name,
-            feature_mode=str(resolved_config["data"]["feature_mode"]),
-            lap_pe_dim=int(resolved_config["data"]["lap_pe_dim"]),
-            random_feature_dim=int(resolved_config["data"]["random_feature_dim"]),
+            feature_mode=str(data_cfg.get("feature_mode", "structural_only")),
+            lap_pe_dim=int(data_cfg.get("lap_pe_dim", 8)),
+            random_feature_dim=int(data_cfg.get("random_feature_dim", 16)),
             rng_seed=seed,
             root=dataset_root,
+            feature_config=data_cfg.get("feature_config", {}),
+            bc_backend=data_cfg.get("bc_backend", "networkit"),
         )
     real_data = data_cache[cache_key].clone()
 

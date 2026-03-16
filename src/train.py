@@ -9,7 +9,7 @@ import torch
 from torch_geometric.loader import DataLoader
 
 from src.data import build_inductive_datasets
-from src.eval import evaluate_loader
+from src.eval import evaluate_loader, evaluate_loader_with_details
 from src.losses import PairwiseRankingLoss
 from src.models import build_model
 from src.utils import ensure_dir, load_config, set_global_seed, write_json
@@ -104,7 +104,7 @@ def train_from_config(config: dict) -> dict:
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    final_val_metrics = evaluate_loader(
+    final_val_metrics, final_val_rows = evaluate_loader_with_details(
         model=model,
         loader=val_loader,
         device=device,
@@ -112,7 +112,7 @@ def train_from_config(config: dict) -> dict:
         topk_values=topk_values,
         topk_ratios=topk_ratios,
     )
-    final_test_id_metrics = evaluate_loader(
+    final_test_id_metrics, final_test_id_rows = evaluate_loader_with_details(
         model=model,
         loader=test_id_loader,
         device=device,
@@ -120,7 +120,7 @@ def train_from_config(config: dict) -> dict:
         topk_values=topk_values,
         topk_ratios=topk_ratios,
     )
-    final_test_ood_metrics = evaluate_loader(
+    final_test_ood_metrics, final_test_ood_rows = evaluate_loader_with_details(
         model=model,
         loader=test_ood_loader,
         device=device,
@@ -142,6 +142,14 @@ def train_from_config(config: dict) -> dict:
 
     if output_dir is not None:
         write_json(output_dir / "metrics.json", summary)
+        write_json(
+            output_dir / "eval_details.json",
+            {
+                "val": final_val_rows,
+                "test_id": final_test_id_rows,
+                "test_ood": final_test_ood_rows,
+            },
+        )
     return summary
 
 
