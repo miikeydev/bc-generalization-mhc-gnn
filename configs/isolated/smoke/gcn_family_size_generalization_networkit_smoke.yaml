@@ -1,0 +1,75 @@
+seeds: [0]
+
+output_root: outputs/smoke/gcn_family_size_generalization_networkit
+
+catalog: configs/multi_seed/catalog.yaml
+
+common_overrides:
+  data:
+    train_graphs: 6
+    val_graphs: 2
+    test_graphs_id: 2
+    test_graphs_ood: 2
+    train_num_nodes: [50, 100]
+    test_num_nodes: [1000, 2000]
+    train_average_degree: [4, 8]
+    test_average_degree: [8, 12]
+    train_families: [er, ba, sbm]
+    ood_families: [ws, rgg]
+    bc_backend: networkit
+    bc_mode: exact
+    feature_mode: degree_random_walk_ppr
+    feature_config:
+      rwpe_dim: 8
+      rwpe_steps: 4
+      ppr_dim: 8
+      ppr_alpha: 0.15
+      ppr_steps: 6
+  training:
+    epochs: 2
+    batch_size: 2
+    learning_rate: 0.001
+    weight_decay: 0.00001
+    ranking_pairs_per_node: 10
+    patience: 2
+  evaluation:
+    topk_values: [5, 10]
+    topk_ratios: [0.05]
+
+reference_gcn_model: &reference_gcn_model
+  hidden_dim: 32
+  num_layers: 2
+  dropout: 0.1
+
+reference_hc_model: &reference_hc_model
+  hidden_dim: 32
+  num_layers: 2
+  dropout: 0.1
+  n_streams: 2
+  use_dynamic: true
+  use_static: true
+  mapping_init_alpha: 0.01
+  sinkhorn_tau: 0.2
+  sinkhorn_iters: 20
+
+experiments:
+  - name: smoke_gcn
+    model_id: gcn
+    overrides:
+      model: *reference_gcn_model
+  - name: smoke_gcn_residual
+    model_id: gcn_residual
+    overrides:
+      model: *reference_gcn_model
+  - name: smoke_hc_gcn
+    model_id: hc_gcn
+    overrides:
+      model: *reference_hc_model
+  - name: smoke_mhc_gcn
+    model_id: mhc_gcn
+    overrides:
+      model: *reference_hc_model
+  - name: smoke_mhc_lite_gcn
+    model_id: mhc_lite_gcn
+    overrides:
+      model: *reference_hc_model

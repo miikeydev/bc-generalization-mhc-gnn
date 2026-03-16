@@ -12,7 +12,7 @@ from torch_geometric.data import Data
 from .betweenness import compute_betweenness_centrality
 from .features import build_node_features
 from .graph_generation import generate_connected_graph
-from .protocol import compute_size_bucket, normalize_data_config
+from .protocol import compute_size_bucket, normalize_data_config, sample_int_from_spec
 
 
 @dataclass
@@ -58,45 +58,39 @@ def build_inductive_datasets(config: dict, seed: int) -> DatasetBundle:
     train_items = _generate_split(
         families=data_cfg["train_families"],
         count=data_cfg["train_graphs"],
-        num_nodes=data_cfg["train_num_nodes"],
-        average_degree=data_cfg["average_degree"],
+        num_nodes_spec=data_cfg["train_num_nodes"],
+        average_degree_spec=data_cfg["train_average_degree"],
         feature_mode=data_cfg["feature_mode"],
         lap_pe_dim=data_cfg["lap_pe_dim"],
         random_feature_dim=data_cfg["random_feature_dim"],
         feature_config=data_cfg.get("feature_config", {}),
-        bc_backend=data_cfg.get("bc_backend", "networkx"),
-        bc_mode=data_cfg.get("bc_mode", "exact"),
-        bc_approximation_k=data_cfg.get("bc_approximation_k"),
+        bc_backend=data_cfg.get("bc_backend", "networkit"),
         seed=seed + 101,
     )
 
     val_items = _generate_split(
         families=data_cfg["train_families"],
         count=data_cfg["val_graphs"],
-        num_nodes=data_cfg["train_num_nodes"],
-        average_degree=data_cfg["average_degree"],
+        num_nodes_spec=data_cfg["train_num_nodes"],
+        average_degree_spec=data_cfg["train_average_degree"],
         feature_mode=data_cfg["feature_mode"],
         lap_pe_dim=data_cfg["lap_pe_dim"],
         random_feature_dim=data_cfg["random_feature_dim"],
         feature_config=data_cfg.get("feature_config", {}),
-        bc_backend=data_cfg.get("bc_backend", "networkx"),
-        bc_mode=data_cfg.get("bc_mode", "exact"),
-        bc_approximation_k=data_cfg.get("bc_approximation_k"),
+        bc_backend=data_cfg.get("bc_backend", "networkit"),
         seed=seed + 202,
     )
 
     test_id_items = _generate_split(
         families=data_cfg["train_families"],
         count=data_cfg["test_graphs_id"],
-        num_nodes=data_cfg["test_num_nodes"],
-        average_degree=data_cfg["average_degree"],
+        num_nodes_spec=data_cfg["test_num_nodes"],
+        average_degree_spec=data_cfg["test_average_degree"],
         feature_mode=data_cfg["feature_mode"],
         lap_pe_dim=data_cfg["lap_pe_dim"],
         random_feature_dim=data_cfg["random_feature_dim"],
         feature_config=data_cfg.get("feature_config", {}),
-        bc_backend=data_cfg.get("bc_backend", "networkx"),
-        bc_mode=data_cfg.get("bc_mode", "exact"),
-        bc_approximation_k=data_cfg.get("bc_approximation_k"),
+        bc_backend=data_cfg.get("bc_backend", "networkit"),
         seed=seed + 303,
     )
 
@@ -105,15 +99,13 @@ def build_inductive_datasets(config: dict, seed: int) -> DatasetBundle:
         test_ood_items = _generate_split(
             families=ood_families,
             count=data_cfg["test_graphs_ood"],
-            num_nodes=data_cfg["test_num_nodes"],
-            average_degree=data_cfg["average_degree"],
+            num_nodes_spec=data_cfg["test_num_nodes"],
+            average_degree_spec=data_cfg["test_average_degree"],
             feature_mode=data_cfg["feature_mode"],
             lap_pe_dim=data_cfg["lap_pe_dim"],
             random_feature_dim=data_cfg["random_feature_dim"],
             feature_config=data_cfg.get("feature_config", {}),
-            bc_backend=data_cfg.get("bc_backend", "networkx"),
-            bc_mode=data_cfg.get("bc_mode", "exact"),
-            bc_approximation_k=data_cfg.get("bc_approximation_k"),
+            bc_backend=data_cfg.get("bc_backend", "networkit"),
             seed=seed + 404,
         )
     else:
@@ -161,15 +153,13 @@ def build_inductive_datasets(config: dict, seed: int) -> DatasetBundle:
 def _generate_split(
     families: Iterable[str],
     count: int,
-    num_nodes: int,
-    average_degree: int,
+    num_nodes_spec: dict,
+    average_degree_spec: dict,
     feature_mode: str,
     lap_pe_dim: int,
     random_feature_dim: int,
     feature_config: dict,
     bc_backend: str,
-    bc_mode: str,
-    bc_approximation_k: int | None,
     seed: int,
 ) -> list[dict]:
     families_list = list(families)
@@ -179,18 +169,18 @@ def _generate_split(
     for _ in range(count):
         family = families_list[int(rng.integers(0, len(families_list)))]
         graph_seed = int(rng.integers(0, 2**31 - 1))
+        requested_num_nodes = sample_int_from_spec(num_nodes_spec, rng)
+        requested_average_degree = sample_int_from_spec(average_degree_spec, rng)
         graph = generate_connected_graph(
             family=family,
-            num_nodes=num_nodes,
-            average_degree=average_degree,
+            num_nodes=requested_num_nodes,
+            average_degree=requested_average_degree,
             seed=graph_seed,
         )
 
         raw_bc = compute_betweenness_centrality(
             graph,
             bc_backend=bc_backend,
-            bc_mode=bc_mode,
-            bc_approximation_k=bc_approximation_k,
             seed=graph_seed,
         )
         y_log = np.log1p(raw_bc).astype(np.float32)
@@ -221,6 +211,8 @@ def _generate_split(
                 "y_raw": raw_bc.astype(np.float32),
                 "y_log": y_log,
                 "family": family,
+                "target_num_nodes": requested_num_nodes,
+                "target_average_degree": requested_average_degree,
                 "num_nodes": num_nodes_actual,
                 "num_edges": num_edges_actual,
                 "avg_degree": avg_degree_actual,
@@ -244,6 +236,8 @@ def _to_pyg_data(items: list[dict], mean: float, std: float) -> list[Data]:
         data.y_raw = torch.from_numpy(item["y_raw"]).float()
         data.y_log = torch.from_numpy(item["y_log"]).float()
         data.family = item["family"]
+        data.target_num_nodes = item.get("target_num_nodes", 0)
+        data.target_average_degree = item.get("target_average_degree", 0)
         data.num_nodes_graph = item.get("num_nodes", 0)
         data.num_edges_graph = item.get("num_edges", 0)
         data.avg_degree = item.get("avg_degree", 0.0)

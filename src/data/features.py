@@ -19,19 +19,30 @@ def build_node_features(
     feature_cfg = feature_config or {}
     normalized_mode = normalize_feature_mode(mode)
 
-    if normalized_mode == "degree_only":
+    if normalized_mode == "degree":
         return _build_degree_only(graph)
 
-    if normalized_mode == "degree_plus_rwpe":
+    if normalized_mode == "degree_random_walk_ppr":
         rwpe_dim = int(feature_cfg.get("rwpe_dim", 8))
         rwpe_steps = int(feature_cfg.get("rwpe_steps", 5))
-        return _build_degree_plus_rwpe(graph, rwpe_dim, rwpe_steps)
-
-    if normalized_mode == "degree_plus_ppr":
         ppr_dim = int(feature_cfg.get("ppr_dim", 8))
         ppr_alpha = float(feature_cfg.get("ppr_alpha", 0.15))
         ppr_steps = int(feature_cfg.get("ppr_steps", 8))
-        return _build_degree_plus_ppr(graph, ppr_dim, ppr_alpha, ppr_steps)
+        degree = _build_degree_only(graph)
+        rwpe = _compute_random_walk_pe(graph, rwpe_dim, rwpe_steps)
+        ppr = _compute_personalized_pagerank_pe(graph, ppr_dim, ppr_alpha, ppr_steps)
+        return np.concatenate([degree, rwpe, ppr], axis=1).astype(np.float32)
+
+    if normalized_mode == "random_walk":
+        rwpe_dim = int(feature_cfg.get("rwpe_dim", 8))
+        rwpe_steps = int(feature_cfg.get("rwpe_steps", 5))
+        return _compute_random_walk_pe(graph, rwpe_dim, rwpe_steps)
+
+    if normalized_mode == "ppr":
+        ppr_dim = int(feature_cfg.get("ppr_dim", 8))
+        ppr_alpha = float(feature_cfg.get("ppr_alpha", 0.15))
+        ppr_steps = int(feature_cfg.get("ppr_steps", 8))
+        return _compute_personalized_pagerank_pe(graph, ppr_dim, ppr_alpha, ppr_steps)
 
     if normalized_mode == "structural_only":
         degree = np.array([graph.degree(node) for node in graph.nodes()], dtype=np.float32).reshape(-1, 1)
@@ -56,18 +67,6 @@ def _build_degree_only(graph: nx.Graph) -> np.ndarray:
     degree = np.array([graph.degree(node) for node in graph.nodes()], dtype=np.float32).reshape(-1, 1)
     log_degree = np.log1p(degree)
     return np.concatenate([degree, log_degree], axis=1).astype(np.float32)
-
-
-def _build_degree_plus_rwpe(graph: nx.Graph, rwpe_dim: int, rwpe_steps: int) -> np.ndarray:
-    degree = _build_degree_only(graph)
-    rwpe = _compute_random_walk_pe(graph, rwpe_dim, rwpe_steps)
-    return np.concatenate([degree, rwpe], axis=1).astype(np.float32)
-
-
-def _build_degree_plus_ppr(graph: nx.Graph, ppr_dim: int, ppr_alpha: float, ppr_steps: int) -> np.ndarray:
-    degree = _build_degree_only(graph)
-    ppr = _compute_personalized_pagerank_pe(graph, ppr_dim, ppr_alpha, ppr_steps)
-    return np.concatenate([degree, ppr], axis=1).astype(np.float32)
 
 
 def _compute_random_walk_pe(graph: nx.Graph, rwpe_dim: int, steps: int) -> np.ndarray:

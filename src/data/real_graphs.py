@@ -20,9 +20,7 @@ def build_real_graph_data(
     rng_seed: int,
     root: str = "data/real_graphs",
     feature_config: dict | None = None,
-    bc_backend: str = "networkx",
-    bc_mode: str = "exact",
-    bc_approximation_k: int | None = None,
+    bc_backend: str = "networkit",
 ) -> Data:
     data_cfg = normalize_data_config(
         {
@@ -31,8 +29,6 @@ def build_real_graph_data(
             "random_feature_dim": random_feature_dim,
             "feature_config": feature_config or {},
             "bc_backend": bc_backend,
-            "bc_mode": bc_mode,
-            "bc_approximation_k": bc_approximation_k,
         }
     )
     graph, original_x = _load_planetoid_graph(dataset_name=dataset_name, root=root)
@@ -49,8 +45,6 @@ def build_real_graph_data(
     y_raw = compute_betweenness_centrality(
         graph=graph,
         bc_backend=data_cfg["bc_backend"],
-        bc_mode=data_cfg["bc_mode"],
-        bc_approximation_k=data_cfg["bc_approximation_k"],
         seed=rng_seed,
     )
 

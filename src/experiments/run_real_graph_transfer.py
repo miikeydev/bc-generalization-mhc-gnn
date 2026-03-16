@@ -75,9 +75,7 @@ def _evaluate_seed(
             rng_seed=seed,
             root=dataset_root,
             feature_config=data_cfg.get("feature_config", {}),
-            bc_backend=data_cfg.get("bc_backend", "networkx"),
-            bc_mode=data_cfg.get("bc_mode", "exact"),
-            bc_approximation_k=data_cfg.get("bc_approximation_k"),
+            bc_backend=data_cfg.get("bc_backend", "networkit"),
         )
     real_data = data_cache[cache_key].clone()
 

@@ -15,9 +15,30 @@ def evaluate_loader(
     topk_values: list[int],
     topk_ratios: list[float],
 ) -> dict[str, float]:
+    summary, _ = evaluate_loader_with_details(
+        model=model,
+        loader=loader,
+        device=device,
+        ranking_loss=ranking_loss,
+        topk_values=topk_values,
+        topk_ratios=topk_ratios,
+    )
+    return summary
+
+
+def evaluate_loader_with_details(
+    model: torch.nn.Module,
+    loader,
+    device: torch.device,
+    ranking_loss,
+    topk_values: list[int],
+    topk_ratios: list[float],
+) -> tuple[dict[str, float], list[dict]]:
     model.eval()
     graph_losses: list[float] = []
     aggregated: dict[str, list[float]] = defaultdict(list)
+    graph_rows: list[dict] = []
+    graph_counter = 0
 
     with torch.no_grad():
         for batch in loader:
@@ -43,12 +64,21 @@ def evaluate_loader(
                 for key, value in graph_metrics.items():
                     aggregated[key].append(value)
 
+                row = {
+                    "graph_index": graph_counter,
+                    "loss": float(loss_value),
+                    **_extract_graph_metadata(batch, int(graph_id.item())),
+                    **{key: float(value) for key, value in graph_metrics.items()},
+                }
+                graph_rows.append(row)
+                graph_counter += 1
+
     output: dict[str, float] = {
         "loss": float(np.mean(graph_losses)) if graph_losses else 0.0,
     }
     for key, values in aggregated.items():
         output[key] = float(np.mean(values)) if values else 0.0
-    return output
+    return output, graph_rows
 
 
 def compute_graph_metrics(
@@ -131,3 +161,45 @@ def _batch_index(batch) -> torch.Tensor:
     if hasattr(batch, "batch") and batch.batch is not None:
         return batch.batch
     return torch.zeros(batch.x.shape[0], dtype=torch.long, device=batch.x.device)
+
+
+def _extract_graph_metadata(batch, graph_id: int) -> dict:
+    metadata_keys = (
+        "family",
+        "target_num_nodes",
+        "target_average_degree",
+        "num_nodes_graph",
+        "num_edges_graph",
+        "avg_degree",
+        "density",
+        "size_bucket",
+    )
+    row: dict = {}
+    for key in metadata_keys:
+        if not hasattr(batch, key):
+            continue
+        value = getattr(batch, key)
+        row[key] = _extract_batched_value(value, graph_id)
+    return row
+
+
+def _extract_batched_value(value, graph_id: int):
+    if isinstance(value, torch.Tensor):
+        if value.ndim == 0:
+            return _to_python_scalar(value)
+        if value.shape[0] > graph_id:
+            return _to_python_scalar(value[graph_id])
+        return _to_python_scalar(value)
+    if isinstance(value, (list, tuple)):
+        if len(value) > graph_id:
+            return value[graph_id]
+        return list(value)
+    return value
+
+
+def _to_python_scalar(value):
+    if isinstance(value, torch.Tensor):
+        if value.numel() == 1:
+            return value.detach().cpu().item()
+        return value.detach().cpu().tolist()
+    return value
