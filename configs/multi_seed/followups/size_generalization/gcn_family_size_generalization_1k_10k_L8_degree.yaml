@@ -1,6 +1,6 @@
 seeds: [0, 1, 2, 3, 4]
 
-output_root: outputs/followups/gcn_family_size_generalization_1k_10k
+output_root: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8_degree
 
 catalog: configs/multi_seed/catalog.yaml
 
@@ -24,13 +24,8 @@ common_overrides:
     ood_families: [ws, rgg]
     bc_backend: networkit
     bc_mode: exact
-    feature_mode: degree_random_walk_ppr
-    feature_config:
-      rwpe_dim: 8
-      rwpe_steps: 6
-      ppr_dim: 8
-      ppr_alpha: 0.15
-      ppr_steps: 8
+    feature_mode: degree
+    feature_config: {}
   training:
     epochs: 80
     batch_size: 1
@@ -51,12 +46,12 @@ common_overrides:
 
 reference_gcn_model: &reference_gcn_model
   hidden_dim: 128
-  num_layers: 4
+  num_layers: 8
   dropout: 0.1
 
 reference_hc_model: &reference_hc_model
   hidden_dim: 128
-  num_layers: 4
+  num_layers: 8
   dropout: 0.1
   n_streams: 2
   use_dynamic: true

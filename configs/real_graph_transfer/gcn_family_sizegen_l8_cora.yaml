@@ -1,0 +1,23 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/real_graph_transfer/gcn_family_sizegen_l8_cora
+
+dataset:
+  name: Cora
+  root: data/real_graphs
+
+evaluation:
+  topk_values: [5, 10, 20, 50]
+  topk_ratios: [0.01, 0.05]
+
+experiments:
+  - name: gcn
+    source_dir: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8/gcn
+  - name: gcn_residual
+    source_dir: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8/gcn_residual
+  - name: hc_gcn
+    source_dir: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8/hc_gcn
+  - name: mhc_gcn
+    source_dir: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8/mhc_gcn
+  - name: mhc_lite_gcn
+    source_dir: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8/mhc_lite_gcn

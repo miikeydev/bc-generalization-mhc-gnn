@@ -16,6 +16,12 @@ def normalize_feature_mode(mode: str) -> str:
         "combined_structural",
     }:
         return "degree_random_walk_ppr"
+    if mode_lower in {
+        "degree_random_walk",
+        "degree_rw",
+        "degree_random_walk_combined",
+    }:
+        return "degree_random_walk"
     if mode_lower in {"degree_only", "degree"}:
         return "degree"
     if mode_lower in {"degree_plus_rwpe", "degree_rwpe", "random_walk", "rwpe"}:
@@ -146,6 +152,8 @@ def infer_input_dim_from_data_config(data_cfg: dict[str, Any]) -> int:
 
     if feature_mode == "degree":
         return 2
+    if feature_mode == "degree_random_walk":
+        return 2 + int(feature_config.get("rwpe_dim", 8))
     if feature_mode == "degree_random_walk_ppr":
         return 2 + int(feature_config.get("rwpe_dim", 8)) + int(feature_config.get("ppr_dim", 8))
     if feature_mode == "random_walk":

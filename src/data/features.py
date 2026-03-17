@@ -22,6 +22,13 @@ def build_node_features(
     if normalized_mode == "degree":
         return _build_degree_only(graph)
 
+    if normalized_mode == "degree_random_walk":
+        rwpe_dim = int(feature_cfg.get("rwpe_dim", 8))
+        rwpe_steps = int(feature_cfg.get("rwpe_steps", 5))
+        degree = _build_degree_only(graph)
+        rwpe = _compute_random_walk_pe(graph, rwpe_dim, rwpe_steps)
+        return np.concatenate([degree, rwpe], axis=1).astype(np.float32)
+
     if normalized_mode == "degree_random_walk_ppr":
         rwpe_dim = int(feature_cfg.get("rwpe_dim", 8))
         rwpe_steps = int(feature_cfg.get("rwpe_steps", 5))

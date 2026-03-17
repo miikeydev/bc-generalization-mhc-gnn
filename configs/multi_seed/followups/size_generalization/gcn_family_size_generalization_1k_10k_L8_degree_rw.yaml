@@ -1,0 +1,89 @@
+seeds: [0, 1, 2, 3, 4]
+
+output_root: outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8_degree_rw
+
+catalog: configs/multi_seed/catalog.yaml
+
+common_overrides:
+  data:
+    train_graphs: 120
+    val_graphs: 20
+    test_graphs_id: 20
+    test_graphs_ood: 20
+    train_num_nodes:
+      min: 50
+      max: 300
+      step: 50
+    test_num_nodes: [1000, 2000, 5000, 10000]
+    train_average_degree:
+      min: 4
+      max: 12
+      step: 2
+    test_average_degree: [8, 12, 16]
+    train_families: [er, ba, sbm]
+    ood_families: [ws, rgg]
+    bc_backend: networkit
+    bc_mode: exact
+    feature_mode: degree_random_walk
+    feature_config:
+      rwpe_dim: 8
+      rwpe_steps: 6
+  training:
+    epochs: 80
+    batch_size: 1
+    learning_rate: 0.00022639943735170472
+    weight_decay: 0.000021019338091154404
+    ranking_pairs_per_node: 30
+    patience: 12
+    scheduler:
+      name: reduce_on_plateau
+      monitor: val_kendall
+      mode: max
+      factor: 0.5
+      patience: 6
+      min_lr: 0.00001
+  evaluation:
+    topk_values: [10, 25, 50, 100]
+    topk_ratios: [0.01, 0.05]
+
+reference_gcn_model: &reference_gcn_model
+  hidden_dim: 128
+  num_layers: 8
+  dropout: 0.1
+
+reference_hc_model: &reference_hc_model
+  hidden_dim: 128
+  num_layers: 8
+  dropout: 0.1
+  n_streams: 2
+  use_dynamic: true
+  use_static: true
+  mapping_init_alpha: 0.01
+  sinkhorn_tau: 0.2
+  sinkhorn_iters: 20
+
+experiments:
+  - name: gcn
+    model_id: gcn
+    overrides:
+      model: *reference_gcn_model
+
+  - name: gcn_residual
+    model_id: gcn_residual
+    overrides:
+      model: *reference_gcn_model
+
+  - name: hc_gcn
+    model_id: hc_gcn
+    overrides:
+      model: *reference_hc_model
+
+  - name: mhc_gcn
+    model_id: mhc_gcn
+    overrides:
+      model: *reference_hc_model
+
+  - name: mhc_lite_gcn
+    model_id: mhc_lite_gcn
+    overrides:
+      model: *reference_hc_model
