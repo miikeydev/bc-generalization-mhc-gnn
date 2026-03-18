@@ -1,0 +1,172 @@
+output_root: ../../outputs/analysis/paper_figures/gcn_family
+
+figures:
+  controlled_anchor:
+    root: ../../outputs/followups/gcn_residual_vs_hc_family
+    metric: test_ood_kendall
+    depths: [4, 8]
+    models: [gcn, gcn_residual, hc_gcn, mhc_gcn, mhc_lite_gcn]
+
+  matrix_stats:
+    root: ../../outputs/analysis/hc_matrices_gcn_l8
+    models: [hc_gcn_l8, mhc_gcn_l8, mhc_lite_gcn_l8]
+    metrics:
+      - identity_distance_mean
+      - row_abs_entropy_mean
+      - nearest_permutation_distance_mean
+    metric_titles:
+      - Identity distance
+      - Row entropy
+      - Nearest-permutation distance
+
+  size_generalization_curves:
+    root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8
+    metric: kendall
+    split_order: [test_id, test_ood]
+    size_order: [1000, 2000, 5000, 10000]
+    models: [gcn, gcn_residual, hc_gcn, mhc_gcn, mhc_lite_gcn]
+
+  real_transfer_summary:
+    root: ../../outputs/real_graph_transfer/size_generalization
+    metric: kendall
+    models: [gcn, gcn_residual, hc_gcn, mhc_gcn, mhc_lite_gcn]
+    dataset_order:
+      - cora
+      - citeseer
+      - pubmed
+      - actor
+      - wisconsin
+      - amazoncomputers
+      - coauthorcs
+      - coauthorphysics
+
+tables:
+  backbone_funnel:
+    rows:
+      - stage: Broad frozen sweep
+        compared: 19 variants across the main backbone families, depths L2-L32
+        key_observation: GCN and GCNII carried the clearest HC-family signal
+        decision: Retain GCN and GCNII for targeted follow-up
+      - stage: Proxy tuning
+        compared: Validation-driven Optuna tuning on GCN and GCNII only
+        key_observation: GCN stabilized cleanly; GCNII remained mixed in the deeper regime
+        decision: Move toward a GCN-centered final comparison
+      - stage: Multi-seed confirmation
+        compared: Tuned candidates re-evaluated across 5 seeds
+        key_observation: GCN-family gains held up; GCNII remained less clean scientifically
+        decision: Freeze the final paper scope on the GCN family
+      - stage: Final paper scope
+        compared: GCN, GCN+residual, HC-GCN, mHC-GCN, mHC-lite-GCN
+        key_observation: Cleanest comparison for isolating the routing mechanism
+        decision: Use this family as the core benchmark block
+
+  legacy_support:
+    rows:
+      - group: Baseline ranking
+        label: GCN
+        depth: 8
+        root: ../../outputs/followups/gcn_residual_vs_hc_family
+        run: gcn_l8
+        takeaway: Plain GCN legacy baseline
+      - group: Baseline ranking
+        label: GCN+Res
+        depth: 8
+        root: ../../outputs/followups/gcn_residual_vs_hc_family
+        run: gcn_residual_l8
+        takeaway: Residual helps but does not match HC
+      - group: Baseline ranking
+        label: HC-GCN
+        depth: 8
+        root: ../../outputs/followups/gcn_residual_vs_hc_family
+        run: hc_gcn_l8
+        takeaway: Best legacy synthetic point
+      - group: Baseline ranking
+        label: mHC-GCN
+        depth: 8
+        root: ../../outputs/followups/gcn_residual_vs_hc_family
+        run: mhc_gcn_l8
+        takeaway: Strong but below HC in the legacy regime
+      - group: Baseline ranking
+        label: mHC-lite-GCN
+        depth: 8
+        root: ../../outputs/followups/gcn_residual_vs_hc_family
+        run: mhc_lite_gcn_l8
+        takeaway: Competitive lighter variant
+      - group: Structure ablation
+        label: mHC dynamic-only
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_structure
+        run: mhc_gcn_dynamic_only_l8
+        takeaway: Dynamic routing retains most of the gain
+      - group: Structure ablation
+        label: mHC static-only
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_structure
+        run: mhc_gcn_static_only_l8
+        takeaway: Static routing remains competitive but slightly weaker
+      - group: Structure ablation
+        label: mHC with 4 streams
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_structure
+        run: mhc_gcn_n4_l8
+        takeaway: More streams did not improve the tuned reference
+      - group: Sinkhorn sensitivity
+        label: mHC tau=0.05
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_sinkhorn
+        run: mhc_gcn_tau005_l8
+        takeaway: Moderate sensitivity, still below HC
+      - group: Sinkhorn sensitivity
+        label: mHC tau=0.10
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_sinkhorn
+        run: mhc_gcn_tau01_l8
+        takeaway: Strongest tested Sinkhorn setting for mHC
+      - group: Sinkhorn sensitivity
+        label: mHC tau=0.20
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_sinkhorn
+        run: mhc_gcn_tau02_l8
+        takeaway: Reference Sinkhorn setting
+      - group: Sinkhorn sensitivity
+        label: mHC iter=10
+        depth: 8
+        root: ../../outputs/ablations/gcn_mhc_sinkhorn
+        run: mhc_gcn_iter10_l8
+        takeaway: Fewer Sinkhorn steps remain competitive
+
+  input_depth_followups:
+    models: [gcn, gcn_residual, hc_gcn, mhc_gcn, mhc_lite_gcn]
+    inputs:
+      - label: degree
+        root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8_degree
+      - label: degree + RW
+        root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8_degree_rw
+      - label: degree + RW + PPR
+        root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8
+    depth_followup:
+      l8_root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8
+      l16_root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L16
+
+  family_delta_summary:
+    root: ../../outputs/followups/size_generalization/gcn_family_size_generalization_1k_10k_L8
+    metric: kendall
+    small_size: 1000
+    large_size: 10000
+    models: [gcn, gcn_residual, hc_gcn, mhc_gcn, mhc_lite_gcn]
+    families:
+      - split: test_id
+        family: er
+        label: ER (IID)
+      - split: test_id
+        family: ba
+        label: BA (IID)
+      - split: test_id
+        family: sbm
+        label: SBM (IID)
+      - split: test_ood
+        family: ws
+        label: WS (OOD)
+      - split: test_ood
+        family: rgg
+        label: RGG (OOD)
